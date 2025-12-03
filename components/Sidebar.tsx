@@ -59,6 +59,16 @@ export default function Sidebar() {
             ),
         },
         {
+            name: 'Reportes',
+            path: '/reports',
+            icon: (
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+                    <path d="M3 4H17C17.5523 4 18 4.44772 18 5V15C18 15.5523 17.5523 16 17 16H3C2.44772 16 2 15.5523 2 15V5C2 4.44772 2.44772 4 3 4Z" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M6 8H14M6 11H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+            ),
+        },
+        {
             name: 'Tu Nivel de Seguridad',
             path: '/security',
             icon: (

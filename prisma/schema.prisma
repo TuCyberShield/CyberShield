@@ -31,6 +31,8 @@ model User {
   usageLogs       UsageLog[]
   apiKeys         ApiKey[]
   pushSubscriptions PushSubscription[]
+  reports         Report[]
+  reportSchedules ReportSchedule[]
 }
 
 model Plan {
@@ -169,4 +171,37 @@ model PushSubscription {
   createdAt   DateTime @default(now())
   
   @@index([userId])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // weekly, monthly, custom
+  period      String   // "2025-12", "2025-W48", etc.
+  status      String   // generating, completed, failed
+  fileUrl     String?  // URL to PDF file
+  emailSent   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  stats       Json     // Summary statistics
+  
+  @@index([userId, createdAt])
+}
+
+model ReportSchedule {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frequency   String   // weekly, monthly
+  dayOfWeek   Int?     // 0-6 for weekly (0 = Sunday)
+  dayOfMonth  Int?     // 1-31 for monthly
+  emailTo     String[] // Recipients
+  isActive    Boolean  @default(true)
+  lastRun     DateTime?
+  nextRun     DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([isActive, nextRun])
 }
