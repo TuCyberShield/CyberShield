@@ -266,12 +266,13 @@ export default function ApiKeysPage() {
 
             {/* Documentation */}
             <div className="glass-panel p-6 mt-6">
-                <h2 className="text-xl font-semibold mb-4">Cómo Usar la API</h2>
-                <div className="space-y-4 text-sm">
+                <h2 className="text-xl font-semibold mb-4">Documentación de la API</h2>
+                <div className="space-y-6 text-sm">
+                    {/* URL Endpoint */}
                     <div>
-                        <h3 className="font-semibold text-white mb-2">Endpoint de Escaneo de URLs:</h3>
-                        <pre className="bg-black/50 p-3 rounded overflow-x-auto">
-                            <code>{`POST https://tu-cyber-shield.vercel.app/api/v1/scan/url
+                        <h3 className="font-semibold text-white mb-2">1. Escaneo de URLs</h3>
+                        <pre className="bg-black/50 p-3 rounded overflow-x-auto text-xs">
+                            <code>{`POST /api/v1/scan/url
 Headers:
   Authorization: Bearer YOUR_API_KEY
   Content-Type: application/json
@@ -292,10 +293,101 @@ Response:
 }`}</code>
                         </pre>
                     </div>
+
+                    {/* Email Endpoint */}
+                    <div>
+                        <h3 className="font-semibold text-white mb-2">2. Escaneo de Emails</h3>
+                        <pre className="bg-black/50 p-3 rounded overflow-x-auto text-xs">
+                            <code>{`POST /api/v1/scan/email
+Headers:
+  Authorization: Bearer YOUR_API_KEY
+  Content-Type: application/json
+
+Body:
+{
+  "content": "Urgent! Verify your account now..."
+}
+
+Response:
+{
+  "riskLevel": "high",
+  "riskScore": 33,
+  "threats": ["Suspicious keyword: urgent", "Suspicious keyword: verify your account"],
+  "linkCount": 2,
+  "analyzed": true,
+  "timestamp": "2025-12-03T00:00:00.000Z"
+}`}</code>
+                        </pre>
+                    </div>
+
+                    {/* Invoice Endpoint */}
+                    <div>
+                        <h3 className="font-semibold text-white mb-2">3. Escaneo de Facturas</h3>
+                        <pre className="bg-black/50 p-3 rounded overflow-x-auto text-xs">
+                            <code>{`POST /api/v1/scan/invoice
+Headers:
+  Authorization: Bearer YOUR_API_KEY
+  Content-Type: application/json
+
+Body:
+{
+  "filename": "factura_2025.pdf",
+  "content": "Cambio de cuenta bancaria urgente..."
+}
+
+Response:
+{
+  "filename": "factura_2025.pdf",
+  "riskLevel": "high",
+  "riskScore": 60,
+  "threats": ["Bank account change detected", "Urgency pressure: urgente"],
+  "analyzed": true,
+  "timestamp": "2025-12-03T00:00:00.000Z"
+}`}</code>
+                        </pre>
+                    </div>
+
+                    {/* Network Endpoint */}
+                    <div>
+                        <h3 className="font-semibold text-white mb-2">4. Escaneo de Conexiones de Red</h3>
+                        <pre className="bg-black/50 p-3 rounded overflow-x-auto text-xs">
+                            <code>{`POST /api/v1/scan/network
+Headers:
+  Authorization: Bearer YOUR_API_KEY
+  Content-Type: application/json
+
+Body:
+{
+  "ipAddress": "192.168.1.1",
+  "port": 22,
+  "protocol": "TCP"
+}
+
+Response:
+{
+  "ipAddress": "192.168.1.1",
+  "port": 22,
+  "protocol": "TCP",
+  "riskLevel": "high",
+  "riskScore": 55,
+  "status": "blocked",
+  "threats": ["🔒 Private IP address detected", "🚨 Dangerous port: SSH - Remote access"],
+  "analyzed": true,
+  "timestamp": "2025-12-03T00:00:00.000Z"
+}`}</code>
+                        </pre>
+                    </div>
+
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
                         <p className="text-blue-300 text-sm">
-                            💡 <strong>Tip:</strong> Los headers de respuesta incluyen información de rate limiting:
+                            💡 <strong>Rate Limiting:</strong> Todos los endpoints retornan headers:
                             <code className="block mt-1 text-xs">X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset</code>
+                        </p>
+                    </div>
+
+                    <div className="bg-green-500/10 border border-green-500/30 rounded p-3">
+                        <p className="text-green-300 text-sm">
+                            ✅ <strong>Base URL:</strong> https://your-cybershield.vercel.app
                         </p>
                     </div>
                 </div>
