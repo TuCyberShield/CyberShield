@@ -101,7 +101,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Action Cards - Now horizontal */}
-                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                     <ActionCard
                         icon={
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -142,6 +142,23 @@ export default function DashboardPage() {
                         title={t.dashboard.actions.analyzeInvoice}
                         description={t.dashboard.actions.analyzeInvoiceDesc}
                         onAction={() => router.push('/scanner?type=invoice')}
+                    />
+
+                    <ActionCard
+                        icon={
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                                <circle cx="16" cy="16" r="10" stroke="#10b981" strokeWidth="2" />
+                                <circle cx="16" cy="16" r="3" fill="#10b981" />
+                                <path d="M16 6V10M16 22V26M26 16H22M10 16H6" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                                <circle cx="8" cy="8" r="2" fill="#10b981" opacity="0.5" />
+                                <circle cx="24" cy="8" r="2" fill="#10b981" opacity="0.5" />
+                                <circle cx="8" cy="24" r="2" fill="#10b981" opacity="0.5" />
+                                <circle cx="24" cy="24" r="2" fill="#10b981" opacity="0.5" />
+                            </svg>
+                        }
+                        title="Analizar Conexión"
+                        description="Verificar seguridad de IPs y puertos"
+                        onAction={() => router.push('/scanner?type=network')}
                     />
                 </div>
             </div>
