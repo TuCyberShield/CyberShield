@@ -26,83 +26,109 @@ export async function POST(request: NextRequest) {
 
         // Enhanced URL analysis with VERY sensitive phishing detection
         const suspiciousPatterns = [
-            // URL shorteners (very common in phishing)
+            // URL shorteners
             'bit.ly', 'tinyurl', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly',
 
-            // Login/account related (English)
-            'login', 'signin', 'sign-in', 'log-in', 'verify', 'account',
-            'secure', 'security', 'update', 'confirm', 'authentication', 'auth',
+            // Login/account (English)
+            'login', 'signin', 'sign-in', 'log-in', 'verify', 'account', 'auth',
+            'secure', 'security', 'update', 'confirm', 'authentication', 'check',
+            'validation', 'portal', 'access', 'admin', 'sysadmin',
 
-            // Login/account related (Spanish)
-            'iniciar-sesion', 'inicio-sesion', 'iniciosesion', 'verificar',
+            // Login/account (Spanish)
+            'iniciar-sesion', 'iniciosesion', 'verificar', 'verifica',
             'cuenta', 'cuentas', 'seguro', 'segura', 'seguras', 'actualizar',
-            'confirmar', 'autenticacion', 'validar', 'validacion',
+            'confirmar', 'autenticacion', 'validar', 'validacion', 'gestion',
 
-            // Banking/finance keywords (English)
-            'banking', 'bank', 'paypal', 'pay-pal', 'amazon', 'netflix', 'microsoft',
-            'apple', 'icloud', 'google', 'facebook', 'instagram', 'twitter',
-            'chase', 'wellsfargo', 'citibank', 'bankofamerica', 'wallet',
+            // Banking/finance (English)
+            'banking', 'bank', 'paypal', 'amazon', 'netflix', 'microsoft',
+            'apple', 'icloud', 'google', 'facebook', 'instagram', 'wallet',
+            'payment', 'transfer', 'invoice', 'billing',
 
-            // Banking/finance keywords (Spanish)
-            'banco', 'banca', 'bancaria', 'bancario', 'financiero', 'financiera',
-            'credito', 'debito', 'tarjeta', 'billetera', 'cartera',
+            // Banking/finance (Spanish)
+            'banco', 'bancaria', 'bancario', 'financiero', 'credito', 'debito',
+            'tarjeta', 'billetera', 'cartera', 'pago', 'pagos', 'transferencia',
+            'factura', 'facturacion', 'proveedor', 'cliente', 'clientebancario',
 
-            // Urgent/pressure words (English)
+            // Urgency (English)
             'password', 'suspended', 'locked', 'unusual', 'activity',
             'urgent', 'immediate', 'action', 'required', 'expire', 'expires',
             'alert', 'warning', 'notice', 'blocked', 'limited',
 
-            // Urgent/pressure words (Spanish)
-            'contraseña', 'suspendido', 'suspendida', 'bloqueado', 'bloqueada',
-            'urgente', 'inmediato', 'inmediata', 'accion', 'requerido', 'requerida',
-            'alerta', 'aviso', 'advertencia', 'expira', 'caduca',
+            // Urgency (Spanish)
+            'contraseña', 'suspendido', 'bloqueado', 'urgente', 'inmediato',
+            'accion', 'requerido', 'alerta', 'aviso', 'advertencia', 'expira',
 
-            // Common phishing tactics
-            'crypto', 'bitcoin', 'prize', 'winner', 'claim',
-            'refund', 'tax', 'irs', 'revenue', 'support', 'help',
-            'premio', 'ganador', 'reclamar', 'reembolso', 'soporte', 'ayuda',
+            // Government/Official (Spanish)
+            'sunat', 'gob-pe', 'gobierno', 'fiscal', 'tributaria', 'tributario',
+            'notificacion', 'descarga',
 
-            // Suspicious generic words
-            'online', 'web', 'portal', 'acceso', 'access', 'cliente', 'customer',
-            'proteccion', 'protection', 'servicio', 'service'
+            // Shipping/Logistics
+            'dhl', 'ups', 'fedex', 'tracking', 'entrega', 'envio', 'envios',
+            'delivery', 'shipping', 'logistica', 'seguimiento',
+
+            // Corporate/Business
+            'corporativo', 'intranet', 'empresa', 'mailcorporativo',
+            'office365', 'microsoft365', 'ms365', 'm365',
+
+            // Generic suspicious
+            'online', 'web', 'portal', 'acceso', 'cliente', 'customer',
+            'proteccion', 'protection', 'servicio', 'service',
+            'soporte', 'support', 'help', 'ayuda',
+
+            // File/Document related
+            'documentos', 'archivos', 'files', 'comprobantes', 'reportes',
+            'invoice', 'factura', 'descarga', 'download',
+
+            // Identity verification
+            'identidad', 'identity', 'mi-identidad',
         ]
 
         const url = input.toLowerCase()
         const threats: string[] = []
-        let riskScore = 0 // 0-100 risk score
+        let riskScore = 0
 
         // Check for suspicious patterns (each adds 6 points)
         suspiciousPatterns.forEach(pattern => {
             if (url.includes(pattern)) {
-                threats.push(`Patrón sospechoso detectado: "${pattern}"`)
+                threats.push(`Patrón sospechoso: "${pattern}"`)
                 riskScore += 6
             }
         })
 
         // Check for phishing indicators
         if (!url.startsWith('https://')) {
-            threats.push('⚠️ URL no utiliza HTTPS - conexión insegura')
+            threats.push('⚠️ NO usa HTTPS - conexión insegura')
             riskScore += 20
         }
 
-        // Check for @ symbol (CRITICAL - often used to disguise URLs)
+        // Check for @ symbol (CRITICAL)
         if (url.includes('@')) {
-            threats.push('🚨 URL contiene "@" - ALTO riesgo de phishing')
+            threats.push('🚨 Contiene "@" - ALTO riesgo de phishing')
             riskScore += 40
         }
 
-        // Check for IP address instead of domain (CRITICAL)
+        // Check for IP address (CRITICAL)
         if (url.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)) {
-            threats.push('🚨 URL utiliza dirección IP - muy sospechoso')
+            threats.push('🚨 Usa dirección IP - muy sospechoso')
             riskScore += 35
         }
 
-        // Check for suspicious TLDs (high risk extensions)
-        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.zip', '.review', '.info']
-        if (suspiciousTLDs.some(tld => url.includes(tld))) {
-            threats.push('⚠️ Dominio usa extensión de alto riesgo')
-            riskScore += 25
+        // Check for suspicious TLDs
+        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.zip', '.review', '.info', '.net', '.org']
+        const foundTLD = suspiciousTLDs.find(tld => url.includes(tld))
+        if (foundTLD) {
+            threats.push(`⚠️ Extensión sospechosa: ${foundTLD}`)
+            riskScore += 22
         }
+
+        // Check for dangerous file extensions in URL
+        const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.zip', '.rar', '.cab', '.msi']
+        dangerousExtensions.forEach(ext => {
+            if (url.includes(ext)) {
+                threats.push(`🚨 Archivo ejecutable sospechoso: ${ext}`)
+                riskScore += 35
+            }
+        })
 
         // Check for excessive subdomains
         const domainMatch = url.match(/https?:\/\/([^\/]+)/)
@@ -110,59 +136,56 @@ export async function POST(request: NextRequest) {
             const domain = domainMatch[1]
             const subdomains = domain.split('.').length - 2
             if (subdomains > 3) {
-                threats.push(`⚠️ Número excesivo de subdominios (${subdomains})`)
-                riskScore += 20
+                threats.push(`⚠️ Múltiples subdominios (${subdomains})`)
+                riskScore += 18
             }
         }
 
-        // Check for typosquatting (CRITICAL - common misspellings)
-        const typosquattingPatterns = {
-            'paypa1': 'paypal',
-            'paypai': 'paypal',
-            'g00gle': 'google',
-            'googIe': 'google',
-            'arnazon': 'amazon',
-            'amazom': 'amazon',
-            'mlcrosoft': 'microsoft',
-            'microsof': 'microsoft',
-            'app1e': 'apple',
-            'appie': 'apple',
-            'netfl1x': 'netflix',
-            'facebo0k': 'facebook',
-        }
-        Object.entries(typosquattingPatterns).forEach(([typo, real]) => {
+        // Check for typosquatting and homographs
+        const typosquattingPatterns = [
+            'paypa1', 'paypai', 'g00gle', 'googIe', 'arnazon', 'amazom',
+            'mlcrosoft', 'microsof', 'micros0ft', 'app1e', 'appie',
+            'netfl1x', 'facebo0k', 'faceb00k'
+        ]
+        typosquattingPatterns.forEach(typo => {
             if (url.includes(typo)) {
-                threats.push(`🚨 TYPOSQUATTING: "${typo}" (imitando "${real}")`)
+                threats.push(`🚨 TYPOSQUATTING detectado: "${typo}"`)
                 riskScore += 40
             }
         })
 
-        // Check for URL encoding (often used to hide malicious URLs)
+        // Check for URL encoding
         if (url.includes('%') && url.match(/%[0-9a-f]{2}/i)) {
-            threats.push('⚠️ URL contiene caracteres codificados (posible ofuscación)')
+            threats.push('⚠️ Caracteres codificados (ofuscación)')
             riskScore += 18
         }
 
-        // Check for excessive length (phishing URLs are often very long)
+        // Check for excessive length
         if (url.length > 150) {
-            threats.push(`⚠️ URL excesivamente larga (${url.length} caracteres)`)
+            threats.push(`⚠️ URL muy larga (${url.length} caracteres)`)
             riskScore += 12
         }
 
-        // Check for multiple dashes (common in phishing domains)
+        // Check for multiple dashes (common in phishing)
         const dashCount = (url.match(/-/g) || []).length
         if (dashCount > 3) {
-            threats.push(`⚠️ Múltiples guiones en URL (${dashCount}) - patrón sospechoso`)
+            threats.push(`⚠️ Múltiples guiones (${dashCount})`)
             riskScore += 10
         }
 
-        // Check for numbers in domain (often used in phishing)
-        if (url.match(/[a-z]+\d+[a-z]+/)) {
-            threats.push('⚠️ Números mezclados con letras - patrón sospechoso')
+        // Check for numbers mixed with letters (homographs)
+        if (url.match(/[a-z]+\d+[a-z]+/) || url.match(/\d+[a-z]+\d+/)) {
+            threats.push('⚠️ Números mezclados con letras')
             riskScore += 12
         }
 
-        // Determine risk level based on score (LOWERED THRESHOLDS)
+        // Check for government impersonation (non-.gob.pe domains)
+        if ((url.includes('sunat') || url.includes('gob') || url.includes('gobierno')) && !url.includes('.gob.pe')) {
+            threats.push('🚨 Posible suplantación de entidad gubernamental')
+            riskScore += 35
+        }
+
+        // Determine risk level (LOWERED THRESHOLDS)
         let riskLevel = 'low'
         if (riskScore >= 25) {
             riskLevel = 'high'
@@ -188,13 +211,14 @@ export async function POST(request: NextRequest) {
         if (riskLevel === 'high') {
             recommendations.push('NO acceder a este enlace')
             recommendations.push('Reportar como phishing')
-            recommendations.push('Verificar el remitente del mensaje')
+            recommendations.push('Verificar el remitente')
         } else if (riskLevel === 'medium') {
-            recommendations.push('Proceder con precaución')
-            recommendations.push('Verificar la legitimidad del sitio')
+            recommendations.push('Proceder con EXTREMA precaución')
+            recommendations.push('Verificar legitimidad del sitio')
+            recommendations.push('No ingresar datos personales')
         } else {
             recommendations.push('URL parece segura')
-            recommendations.push('Mantener actualizado el antivirus')
+            recommendations.push('Mantener precaución general')
         }
 
         return NextResponse.json({
