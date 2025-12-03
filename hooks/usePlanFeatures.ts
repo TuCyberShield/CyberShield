@@ -7,6 +7,7 @@ interface UsageStats {
     urlScans: number
     emailScans: number
     invoiceScans: number
+    networkScans: number
     lastReset: string
 }
 
@@ -16,6 +17,7 @@ export function usePlanFeatures() {
         urlScans: 0,
         emailScans: 0,
         invoiceScans: 0,
+        networkScans: 0,
         lastReset: new Date().toDateString()
     })
     const [loading, setLoading] = useState(true)
@@ -46,6 +48,7 @@ export function usePlanFeatures() {
                     urlScans: 0,
                     emailScans: 0,
                     invoiceScans: 0,
+                    networkScans: 0,
                     lastReset: today
                 }
                 localStorage.setItem('dailyUsage', JSON.stringify(resetUsage))
@@ -59,6 +62,7 @@ export function usePlanFeatures() {
                 urlScans: 0,
                 emailScans: 0,
                 invoiceScans: 0,
+                networkScans: 0,
                 lastReset: today
             }
             localStorage.setItem('dailyUsage', JSON.stringify(newUsage))
@@ -66,7 +70,7 @@ export function usePlanFeatures() {
         }
     }
 
-    const incrementUsage = (type: 'urlScans' | 'emailScans' | 'invoiceScans') => {
+    const incrementUsage = (type: 'urlScans' | 'emailScans' | 'invoiceScans' | 'networkScans') => {
         setUsage(prev => {
             const updated = {
                 ...prev,
@@ -81,7 +85,7 @@ export function usePlanFeatures() {
         return isPlanFeatureAvailable(userPlan, feature as any)
     }
 
-    const canPerformScan = (type: 'urlScans' | 'emailScans' | 'invoiceScans'): boolean => {
+    const canPerformScan = (type: 'urlScans' | 'emailScans' | 'invoiceScans' | 'networkScans'): boolean => {
         const plan = PLANS[userPlan]
         if (!plan) return false
 
@@ -91,7 +95,7 @@ export function usePlanFeatures() {
         return usage[type] < limit
     }
 
-    const getRemainingScansCount = (type: 'urlScans' | 'emailScans' | 'invoiceScans'): number => {
+    const getRemainingScansCount = (type: 'urlScans' | 'emailScans' | 'invoiceScans' | 'networkScans'): number => {
         return getRemainingScans(userPlan, type, usage[type])
     }
 

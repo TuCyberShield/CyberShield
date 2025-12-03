@@ -4,6 +4,7 @@ export interface PlanLimits {
     urlScans: number // -1 = unlimited
     emailScans: number
     invoiceScans: number
+    networkScans: number
     trafficAnalysis: boolean
     aiAnalysis: boolean
     advancedReports: boolean
@@ -48,6 +49,7 @@ export const PLANS: Record<string, PlanConfig> = {
             urlScans: 10,
             emailScans: 10,
             invoiceScans: -1,
+            networkScans: 5,
             trafficAnalysis: false,
             aiAnalysis: false,
             advancedReports: false,
@@ -84,6 +86,7 @@ export const PLANS: Record<string, PlanConfig> = {
             urlScans: -1,
             emailScans: -1,
             invoiceScans: -1,
+            networkScans: -1,
             trafficAnalysis: false,
             aiAnalysis: true,
             advancedReports: true,
@@ -123,6 +126,7 @@ export const PLANS: Record<string, PlanConfig> = {
             urlScans: -1,
             emailScans: -1,
             invoiceScans: -1,
+            networkScans: -1,
             trafficAnalysis: true,
             aiAnalysis: true,
             advancedReports: true,
@@ -153,7 +157,7 @@ export const isPlanFeatureAvailable = (
 
 export const getRemainingScans = (
     userPlan: string,
-    scanType: 'urlScans' | 'emailScans' | 'invoiceScans',
+    scanType: 'urlScans' | 'emailScans' | 'invoiceScans' | 'networkScans',
     usedToday: number
 ): number => {
     const plan = PLANS[userPlan]

@@ -6,7 +6,7 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures'
 import { UsageLimitBanner } from '@/components/UpgradePrompt'
 import { useLanguage } from '@/contexts/LanguageContext'
 
-type ScanType = 'url' | 'email' | 'invoice'
+type ScanType = 'url' | 'email' | 'invoice' | 'network'
 
 export default function ScannerPage() {
     const router = useRouter()
@@ -19,6 +19,9 @@ export default function ScannerPage() {
     )
     const [scanInput, setScanInput] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [ipAddress, setIpAddress] = useState('')
+    const [port, setPort] = useState('')
+    const [protocol, setProtocol] = useState('TCP')
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<any>(null)
 
@@ -34,9 +37,14 @@ export default function ScannerPage() {
             return
         }
 
-        if (activeTab !== 'invoice' && !scanInput.trim()) return
+        if (activeTab === 'network' && (!ipAddress.trim() || !port.trim())) {
+            setResult({ error: 'Por favor ingresa IP y puerto' })
+            return
+        }
 
-        const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : 'invoiceScans'
+        if (activeTab !== 'invoice' && activeTab !== 'network' && !scanInput.trim()) return
+
+        const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : activeTab === 'network' ? 'networkScans' : 'invoiceScans'
         if (!canPerformScan(scanType)) {
             setResult({
                 error: 'Has alcanzado el límite diario de escaneos. Actualiza tu plan para continuar.',
@@ -58,6 +66,12 @@ export default function ScannerPage() {
                     input: selectedFile.name,
                     fileType: selectedFile.type,
                     fileSize: selectedFile.size
+                })
+            } else if (activeTab === 'network') {
+                body = JSON.stringify({
+                    ipAddress,
+                    port: parseInt(port),
+                    protocol
                 })
             } else {
                 body = JSON.stringify({ input: scanInput })
@@ -150,6 +164,19 @@ export default function ScannerPage() {
                 >
                     {t.scanner.invoiceTab}
                 </button>
+                <button
+                    onClick={() => {
+                        setActiveTab('network')
+                        setScanInput('')
+                        setSelectedFile(null)
+                    }}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'network'
+                        ? 'cyber-button'
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                >
+                    Analizar Conexión
+                </button>
             </div>
 
             {/* Usage Limit Banner */}
@@ -166,7 +193,60 @@ export default function ScannerPage() {
             {/* Scanner Input */}
             <div className="glass-panel p-6 mb-6">
                 <div className="mb-4">
-                    {activeTab === 'invoice' ? (
+                    {activeTab === 'network' ? (
+                        <>
+                            <label className="block text-sm font-medium mb-2">
+                                Analizar Conexión de Red
+                            </label>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs text-gray-400 mb-1">Dirección IP</label>
+                                    <input
+                                        type="text"
+                                        value={ipAddress}
+                                        onChange={(e) => setIpAddress(e.target.value)}
+                                        className="cyber-input w-full"
+                                        placeholder="Ej: 192.168.1.1"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">Puerto</label>
+                                        <input
+                                            type="number"
+                                            value={port}
+                                            onChange={(e) => setPort(e.target.value)}
+                                            className="cyber-input w-full"
+                                            placeholder="Ej: 443"
+                                            min="1"
+                                            max="65535"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-400 mb-1">Protocolo</label>
+                                        <select
+                                            value={protocol}
+                                            onChange={(e) => setProtocol(e.target.value)}
+                                            className="cyber-input w-full"
+                                        >
+                                            <option value="TCP">TCP</option>
+                                            <option value="UDP">UDP</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                                    <p className="text-xs text-blue-300">
+                                        💡 <strong>Ejemplos:</strong>
+                                    </p>
+                                    <ul className="text-xs text-gray-400 mt-1 space-y-1 ml-4">
+                                        <li>• 8.8.8.8:53 - Google DNS</li>
+                                        <li>• 192.168.1.1:22 - SSH en red privada</li>
+                                        <li>• 104.26.0.1:443 - HTTPS</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </>
+                    ) : activeTab === 'invoice' ? (
                         <>
                             <label className="block text-sm font-medium mb-2">
                                 Subir Factura (PDF o Imagen)
@@ -220,7 +300,11 @@ export default function ScannerPage() {
 
                 <button
                     onClick={handleScan}
-                    disabled={loading || (activeTab !== 'invoice' && !scanInput.trim()) || (activeTab === 'invoice' && !selectedFile)}
+                    disabled={loading ||
+                        (activeTab === 'network' && (!ipAddress.trim() || !port.trim())) ||
+                        (activeTab !== 'invoice' && activeTab !== 'network' && !scanInput.trim()) ||
+                        (activeTab === 'invoice' && !selectedFile)
+                    }
                     className="cyber-button px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? t.scanner.analyzing : t.scanner.analyze}
