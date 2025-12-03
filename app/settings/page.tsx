@@ -147,70 +147,71 @@ export default function SettingsPage() {
                             <span style={{ color: 'var(--text-primary)' }}>{t.settings.lightTheme}</span>
                         </label>
                     </div>
+                </div>
 
-                    {/* Notification Settings */}
-                    <NotificationToggle />
+                {/* Notification Settings */}
+                <NotificationToggle />
 
-                    {/* API Keys Section */}
-                    <div className="glass-panel p-6">
-                        <h3 className="text-lg font-semibold mb-4">API Keys</h3>
-                        <p style={{ color: 'var(--text-secondary)' }} className="mb-4 text-sm">
-                            Genera claves de API para integrar CyberShield con tus aplicaciones externas
-                        </p>
-                        <div className="mb-4 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                            <p className="text-sm text-green-400">✅ Disponible ahora - Integra con tus sistemas</p>
-                        </div>
-                        <button
-                            className="cyber-button px-6 py-3"
-                            onClick={() => router.push('/settings/api-keys')}
-                        >
-                            Gestionar API Keys
-                        </button>
+                {/* API Keys Section */}
+                <div className="glass-panel p-6">
+                    <h3 className="text-lg font-semibold mb-4">API Keys</h3>
+                    <p style={{ color: 'var(--text-secondary)' }} className="mb-4 text-sm">
+                        Genera claves de API para integrar CyberShield con tus aplicaciones externas
+                    </p>
+                    <div className="mb-4 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <p className="text-sm text-green-400">✅ Disponible ahora - Integra con tus sistemas</p>
                     </div>
-
-                    {/* External Integrations */}
-                    <div className="glass-panel p-6">
-                        <h3 className="text-lg font-semibold mb-4">{t.settings.integrations}</h3>
-                        <div className="mb-4 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                            <p className="text-sm text-cyan-400">{t.settings.comingSoon} Conecta CyberShield con tu suite de productividad</p>
-                        </div>
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                                <div>
-                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Microsoft 365</p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Monitoreo de correos y documentos</p>
-                                </div>
-                                <button
-                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                                    onClick={() => alert('Próximamente: Conecta tu cuenta de Microsoft 365 para análisis automático de amenazas en emails.')}
-                                >
-                                    {t.settings.connect}
-                                </button>
-                            </div>
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                                <div>
-                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Google Workspace</p>
-                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Protección de Gmail y Drive</p>
-                                </div>
-                                <button
-                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                                    onClick={() => alert('Próximamente: Conecta Google Workspace para escaneo automático de archivos y emails.')}
-                                >
-                                    {t.settings.connect}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Save Button */}
                     <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="cyber-button w-full py-4 text-lg disabled:opacity-50"
+                        className="cyber-button px-6 py-3"
+                        onClick={() => router.push('/settings/api-keys')}
                     >
-                        {saving ? t.settings.saving : t.settings.saveConfig}
+                        Gestionar API Keys
                     </button>
                 </div>
+
+                {/* External Integrations */}
+                <div className="glass-panel p-6">
+                    <h3 className="text-lg font-semibold mb-4">{t.settings.integrations}</h3>
+                    <div className="mb-4 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                        <p className="text-sm text-cyan-400">{t.settings.comingSoon} Conecta CyberShield con tu suite de productividad</p>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                            <div>
+                                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Microsoft 365</p>
+                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Monitoreo de correos y documentos</p>
+                            </div>
+                            <button
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                                onClick={() => alert('Próximamente: Conecta tu cuenta de Microsoft 365 para análisis automático de amenazas en emails.')}
+                            >
+                                {t.settings.connect}
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                            <div>
+                                <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Google Workspace</p>
+                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Protección de Gmail y Drive</p>
+                            </div>
+                            <button
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                                onClick={() => alert('Próximamente: Conecta Google Workspace para escaneo automático de archivos y emails.')}
+                            >
+                                {t.settings.connect}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Save Button */}
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="cyber-button w-full py-4 text-lg disabled:opacity-50"
+                >
+                    {saving ? t.settings.saving : t.settings.saveConfig}
+                </button>
             </div>
-            )
+        </div>
+    )
 }
