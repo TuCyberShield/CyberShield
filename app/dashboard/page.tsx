@@ -54,7 +54,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Security Score - Full height on left */}
                 <div className="lg:col-span-1 lg:row-span-2">
-                    <SecurityScore score={90} />
+                    <SecurityScore />
                 </div>
 
                 {/* Metrics Panel */}

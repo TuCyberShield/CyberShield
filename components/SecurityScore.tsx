@@ -2,12 +2,50 @@
 
 import { useEffect, useState } from 'react'
 
-interface SecurityScoreProps {
+interface SecurityScoreData {
     score: number
+    distribution: {
+        low: number
+        medium: number
+        high: number
+    }
+    threatCount: number
+    safeScanCount: number
 }
 
-export default function SecurityScore({ score }: SecurityScoreProps) {
+export default function SecurityScore() {
+    const [data, setData] = useState<SecurityScoreData>({
+        score: 100,
+        distribution: { low: 70, medium: 20, high: 10 },
+        threatCount: 0,
+        safeScanCount: 0
+    })
     const [animatedScore, setAnimatedScore] = useState(0)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchSecurityScore()
+    }, [])
+
+    const fetchSecurityScore = async () => {
+        try {
+            const token = localStorage.getItem('token')
+            const res = await fetch('/api/dashboard/security-score', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (res.ok) {
+                const scoreData = await res.json()
+                setData(scoreData)
+            }
+        } catch (error) {
+            console.error('Error fetching security score:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
         let start = 0
@@ -19,7 +57,7 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
             const progress = Math.min(elapsed / duration, 1)
             const easeOut = 1 - Math.pow(1 - progress, 4)
 
-            start = Math.floor(score * easeOut)
+            start = Math.floor(data.score * easeOut)
             setAnimatedScore(start)
 
             if (progress < 1) {
@@ -28,7 +66,15 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
         }
 
         animate()
-    }, [score])
+    }, [data.score])
+
+    // Calculate circle segments based on real distribution
+    const { low, medium, high } = data.distribution
+    const circumference = 2 * Math.PI * 80 // radius = 80
+
+    const lowDash = (low / 100) * circumference
+    const mediumDash = (medium / 100) * circumference
+    const highDash = (high / 100) * circumference
 
     return (
         <div className="glass-panel h-full p-8 flex items-center justify-center">
@@ -66,7 +112,7 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
                         strokeWidth="20"
                     />
 
-                    {/* Green segment (70%) */}
+                    {/* Green segment (low severity) */}
                     <circle
                         cx="100"
                         cy="100"
@@ -74,13 +120,13 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
                         fill="none"
                         stroke="url(#greenGradient)"
                         strokeWidth="20"
-                        strokeDasharray="351.68"
-                        strokeDashoffset="105.5"
+                        strokeDasharray={`${lowDash} ${circumference - lowDash}`}
+                        strokeDashoffset="0"
                         filter="url(#glow)"
                         className="transition-all duration-1000"
                     />
 
-                    {/* Blue segment (20%) */}
+                    {/* Blue segment (medium severity) */}
                     <circle
                         cx="100"
                         cy="100"
@@ -88,13 +134,13 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
                         fill="none"
                         stroke="url(#blueGradient)"
                         strokeWidth="20"
-                        strokeDasharray="125.6 376.8"
-                        strokeDashoffset="-246.18"
+                        strokeDasharray={`${mediumDash} ${circumference - mediumDash}`}
+                        strokeDashoffset={`-${lowDash}`}
                         filter="url(#glow)"
                         className="transition-all duration-1000"
                     />
 
-                    {/* Red segment (10%) */}
+                    {/* Red segment (high severity) */}
                     <circle
                         cx="100"
                         cy="100"
@@ -102,8 +148,8 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
                         fill="none"
                         stroke="url(#redGradient)"
                         strokeWidth="20"
-                        strokeDasharray="62.8 439.2"
-                        strokeDashoffset="-371.78"
+                        strokeDasharray={`${highDash} ${circumference - highDash}`}
+                        strokeDashoffset={`-${lowDash + mediumDash}`}
                         filter="url(#glow)"
                         className="transition-all duration-1000"
                     />
@@ -112,11 +158,16 @@ export default function SecurityScore({ score }: SecurityScoreProps) {
                 {/* Score Text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <div className="text-6xl font-bold cyber-gradient" style={{ filter: 'drop-shadow(0 0 20px rgba(0, 240, 255, 0.5))' }}>
-                        {animatedScore}
+                        {loading ? '...' : animatedScore}
                     </div>
                     <div className="text-xs font-semibold text-gray-400 mt-2 text-center leading-tight">
                         PUNTOS DE<br />SEGURIDAD
                     </div>
+                    {!loading && data.threatCount > 0 && (
+                        <div className="text-xs text-red-400 mt-2">
+                            {data.threatCount} amenazas detectadas
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

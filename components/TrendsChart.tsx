@@ -1,22 +1,52 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+interface TrendsData {
+    labels: string[]
+    totalThreats: number[]
+    criticalThreats: number[]
+}
 
 export default function TrendsChart() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const [data, setData] = useState<TrendsData>({
+        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'],
+        totalThreats: [0, 0, 0, 0, 0, 0, 0, 0],
+        criticalThreats: [0, 0, 0, 0, 0, 0, 0, 0],
+    })
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchTrends()
+    }, [])
+
+    const fetchTrends = async () => {
+        try {
+            const token = localStorage.getItem('token')
+            const res = await fetch('/api/dashboard/trends', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (res.ok) {
+                const trendsData = await res.json()
+                setData(trendsData)
+            }
+        } catch (error) {
+            console.error('Error fetching trends:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
         const canvas = canvasRef.current
-        if (!canvas) return
+        if (!canvas || loading) return
 
         const ctx = canvas.getContext('2d')
         if (!ctx) return
-
-        const data = {
-            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'],
-            totalThreats: [12, 19, 15, 25, 22, 30, 28, 35],
-            criticalThreats: [3, 5, 4, 8, 6, 10, 9, 12],
-        }
 
         let animationProgress = 0
 
@@ -28,7 +58,7 @@ export default function TrendsChart() {
         }
 
         const drawLine = (
-            data: number[],
+            lineData: number[],
             maxValue: number,
             padding: number,
             chartHeight: number,
@@ -37,7 +67,7 @@ export default function TrendsChart() {
             color2: string,
             width: number
         ) => {
-            const points = data.map((value, i) => ({
+            const points = lineData.map((value, i) => ({
                 x: padding + stepX * i,
                 y: padding + chartHeight - (value / maxValue) * chartHeight * animationProgress,
             }))
@@ -100,7 +130,7 @@ export default function TrendsChart() {
             const padding = 40
             const chartWidth = width - padding * 2
             const chartHeight = height - padding * 2
-            const maxValue = Math.max(...data.totalThreats)
+            const maxValue = Math.max(...data.totalThreats, 1) // Avoid division by zero
             const stepX = chartWidth / (data.labels.length - 1)
 
             // Grid lines
@@ -141,15 +171,17 @@ export default function TrendsChart() {
         resize()
         animate()
 
-        window.addEventListener('resize', () => {
+        const handleResize = () => {
             resize()
             draw()
-        })
+        }
+
+        window.addEventListener('resize', handleResize)
 
         return () => {
-            window.removeEventListener('resize', resize)
+            window.removeEventListener('resize', handleResize)
         }
-    }, [])
+    }, [data, loading])
 
     return (
         <div className="glass-panel p-6">
@@ -166,7 +198,13 @@ export default function TrendsChart() {
                     </div>
                 </div>
             </div>
-            <canvas ref={canvasRef} className="w-full h-52" />
+            {loading ? (
+                <div className="w-full h-52 flex items-center justify-center text-gray-400">
+                    Cargando tendencias...
+                </div>
+            ) : (
+                <canvas ref={canvasRef} className="w-full h-52" />
+            )}
         </div>
     )
 }
