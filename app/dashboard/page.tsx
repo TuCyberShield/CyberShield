@@ -100,8 +100,8 @@ export default function DashboardPage() {
                     <TrendsChart />
                 </div>
 
-                {/* Action Cards */}
-                <div className="lg:col-span-1 space-y-4 md:space-y-6">
+                {/* Action Cards - Now horizontal */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                     <ActionCard
                         icon={
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
