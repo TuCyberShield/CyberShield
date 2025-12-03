@@ -91,7 +91,7 @@ export default function SettingsPage() {
                                 value="es"
                                 checked={config.language === 'es'}
                                 onChange={(e) => {
-                                    setConfig({ ...config, language: e.target.value })
+                                    setConfig({ ...config, language: e.target.value as 'es' | 'en' })
                                     setLanguage('es')
                                 }}
                                 className="w-4 h-4 text-cyan-400"
@@ -105,7 +105,7 @@ export default function SettingsPage() {
                                 value="en"
                                 checked={config.language === 'en'}
                                 onChange={(e) => {
-                                    setConfig({ ...config, language: e.target.value })
+                                    setConfig({ ...config, language: e.target.value as 'es' | 'en' })
                                     setLanguage('en')
                                 }}
                                 className="w-4 h-4 text-cyan-400"
