@@ -24,61 +24,108 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
         }
 
-        // Simulate invoice analysis
+        // Enhanced invoice analysis with comprehensive fraud detection
         const filename = input.toLowerCase()
         const threats: string[] = []
-        let riskLevel = 'low'
+        let riskScore = 0
 
         // Check file size (simulated - in real app this would be actual file)
         if (fileSize && fileSize > 10 * 1024 * 1024) { // 10MB
             threats.push('Archivo excede el tamaño recomendado (>10MB)')
-            riskLevel = 'medium'
+            riskScore += 15
         }
 
-        // Check file type
+        // Check file type - strict validation
         const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
         if (fileType && !validTypes.includes(fileType)) {
             threats.push('Tipo de archivo no válido o sospechoso')
-            riskLevel = 'high'
+            riskScore += 40
         }
 
-        // Check for suspicious filename patterns
-        const suspiciousPatterns = [
-            '.exe',
-            '.bat',
-            '.scr',
-            '.com',
-            'urgent',
-            'immediate',
-            'action required',
-            'overdue',
+        // Check for dangerous executable extensions
+        const dangerousExtensions = [
+            '.exe', '.bat', '.cmd', '.scr', '.vbs', '.js', '.jar',
+            '.com', '.pif', '.msi', '.app', '.deb', '.dmg'
         ]
-
-        suspiciousPatterns.forEach(pattern => {
-            if (filename.includes(pattern)) {
-                threats.push(`Patrón sospechoso en nombre: "${pattern}"`)
-                if (pattern.startsWith('.')) {
-                    riskLevel = 'high'
-                } else {
-                    riskLevel = riskLevel === 'low' ? 'medium' : riskLevel
-                }
+        dangerousExtensions.forEach(ext => {
+            if (filename.includes(ext)) {
+                threats.push(`Extensión peligrosa detectada: "${ext}"`)
+                riskScore += 50
             }
         })
 
-        // Check for double extensions
+        // Check for double extensions (common malware technique)
         const extensionCount = (filename.match(/\./g) || []).length
         if (extensionCount > 1) {
             threats.push('Archivo con múltiples extensiones detectado')
-            riskLevel = 'high'
+            riskScore += 35
         }
 
-        // Simulate OCR/content analysis keywords
-        const fraudKeywords = ['wire transfer', 'bitcoin', 'cryptocurrency', 'urgent payment']
-        const hasKeywords = fraudKeywords.some(keyword => filename.includes(keyword.replace(' ', '_')))
+        // Check for suspicious filename patterns
+        const suspiciousFilePatterns = [
+            'urgent', 'urgente', 'immediate', 'inmediato',
+            'action required', 'acción requerida', 'overdue', 'vencido',
+            'final notice', 'aviso final', 'payment due', 'pago pendiente',
+            'invoice_', 'factura_', 'receipt_', 'recibo_'
+        ]
+        suspiciousFilePatterns.forEach(pattern => {
+            if (filename.includes(pattern)) {
+                threats.push(`Patrón sospechoso en nombre: "${pattern}"`)
+                riskScore += 12
+            }
+        })
 
-        if (hasKeywords) {
-            threats.push('Contenido sospechoso de fraude financiero detectado')
+        // Check for fraud-related keywords
+        const fraudKeywords = [
+            'wire transfer', 'transferencia bancaria', 'bitcoin', 'cryptocurrency',
+            'urgent payment', 'pago urgente', 'account update', 'actualización de cuenta',
+            'verify payment', 'verificar pago', 'unusual activity', 'actividad inusual'
+        ]
+        fraudKeywords.forEach(keyword => {
+            const normalizedKeyword = keyword.replace(' ', '_')
+            if (filename.includes(normalizedKeyword) || filename.includes(keyword)) {
+                threats.push(`Contenido sospechoso de fraude: "${keyword}"`)
+                riskScore += 25
+            }
+        })
+
+        // Check for typosquatting in company names
+        const typosquattedCompanies = [
+            'arnazon', 'paypa1', 'mlcrosoft', 'g00gle', 'app1e',
+            'netfl1x', 'spotlfy', 'salesf0rce'
+        ]
+        typosquattedCompanies.forEach(typo => {
+            if (filename.includes(typo)) {
+                threats.push(`Posible nombre de empresa falsificado: "${typo}"`)
+                riskScore += 30
+            }
+        })
+
+        // Check for suspicious number patterns (fake invoice numbers)
+        const suspiciousNumberPatterns = [
+            /\d{10,}/, // Very long numbers
+            /0{5,}/, // Many zeros
+            /1{5,}/, // Many ones
+        ]
+        suspiciousNumberPatterns.forEach(pattern => {
+            if (pattern.test(filename)) {
+                threats.push('Patrón numérico sospechoso en nombre de archivo')
+                riskScore += 10
+            }
+        })
+
+        // Check for obfuscation attempts
+        if (filename.includes('_') && filename.split('_').length > 5) {
+            threats.push('Nombre de archivo excesivamente complejo (posible ofuscación)')
+            riskScore += 15
+        }
+
+        // Determine risk level based on score
+        let riskLevel = 'low'
+        if (riskScore >= 60) {
             riskLevel = 'high'
+        } else if (riskScore >= 30) {
+            riskLevel = 'medium'
         }
 
         // Store analysis result
@@ -97,14 +144,15 @@ export async function POST(request: NextRequest) {
 
         const recommendations = []
         if (riskLevel === 'high') {
-            recommendations.push('NO PROCESAR este documento')
+            recommendations.push('NO ABRIR ni EJECUTAR este archivo')
             recommendations.push('Contactar al remitente por canal oficial')
             recommendations.push('Reportar como posible fraude')
-            recommendations.push('Verificar autenticidad con el emisor')
+            recommendations.push('Eliminar el archivo inmediatamente')
         } else if (riskLevel === 'medium') {
-            recommendations.push('Verificar remitente antes de procesar')
+            recommendations.push('Verificar remitente antes de abrir')
             recommendations.push('Confirmar detalles de pago por teléfono')
             recommendations.push('Revisar números de cuenta cuidadosamente')
+            recommendations.push('Escanear con antivirus antes de abrir')
         } else {
             recommendations.push('Factura parece legítima')
             recommendations.push('Verificar datos de pago estándar')

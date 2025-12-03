@@ -24,48 +24,95 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'URL requerida' }, { status: 400 })
         }
 
-        // Simulate URL analysis
+        // Enhanced URL analysis with comprehensive phishing detection
         const suspiciousPatterns = [
-            'bit.ly',
-            'tinyurl',
-            'login',
-            'verify',
-            'account',
-            'secure',
-            'update',
-            'confirm',
+            'bit.ly', 'tinyurl', 'goo.gl', 't.co', // URL shorteners
+            'login', 'signin', 'verify', 'account', 'secure', 'update', 'confirm',
+            'banking', 'paypal', 'amazon', 'netflix', 'microsoft', 'apple',
+            'password', 'suspended', 'locked', 'unusual', 'activity',
+            'urgent', 'immediate', 'action', 'required', 'expire',
         ]
 
         const url = input.toLowerCase()
         const threats: string[] = []
-        let riskLevel = 'low'
+        let riskScore = 0 // 0-100 risk score
 
-        // Check for suspicious patterns
+        // Check for suspicious patterns (each adds 10 points)
         suspiciousPatterns.forEach(pattern => {
             if (url.includes(pattern)) {
                 threats.push(`Patrón sospechoso detectado: "${pattern}"`)
+                riskScore += 10
             }
         })
 
         // Check for phishing indicators
         if (!url.startsWith('https://')) {
             threats.push('URL no utiliza HTTPS - conexión insegura')
+            riskScore += 15
         }
 
+        // Check for @ symbol (often used to disguise URLs)
         if (url.includes('@')) {
             threats.push('URL contiene "@" - posible intento de engaño')
-            riskLevel = 'high'
+            riskScore += 30
         }
 
+        // Check for IP address instead of domain
         if (url.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)) {
             threats.push('URL utiliza dirección IP en lugar de dominio')
-            riskLevel = 'medium'
+            riskScore += 25
         }
 
-        // Determine risk level
-        if (threats.length > 3) {
+        // Check for suspicious TLDs
+        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click']
+        if (suspiciousTLDs.some(tld => url.includes(tld))) {
+            threats.push('Dominio usa extensión de alto riesgo')
+            riskScore += 20
+        }
+
+        // Check for excessive subdomains
+        const domainMatch = url.match(/https?:\/\/([^\/]+)/)
+        if (domainMatch) {
+            const domain = domainMatch[1]
+            const subdomains = domain.split('.').length - 2
+            if (subdomains > 3) {
+                threats.push(`Número excesivo de subdominios (${subdomains})`)
+                riskScore += 15
+            }
+        }
+
+        // Check for typosquatting (common misspellings)
+        const typosquattingPatterns = {
+            'paypa1': 'paypal',
+            'g00gle': 'google',
+            'arnazon': 'amazon',
+            'mlcrosoft': 'microsoft',
+            'app1e': 'apple',
+        }
+        Object.entries(typosquattingPatterns).forEach(([typo, real]) => {
+            if (url.includes(typo)) {
+                threats.push(`Posible typosquatting: "${typo}" (imitando "${real}")`)
+                riskScore += 35
+            }
+        })
+
+        // Check for URL encoding (often used to hide malicious URLs)
+        if (url.includes('%') && url.match(/%[0-9a-f]{2}/i)) {
+            threats.push('URL contiene caracteres codificados (posible ofuscación)')
+            riskScore += 15
+        }
+
+        // Check for excessive length (phishing URLs are often very long)
+        if (url.length > 150) {
+            threats.push(`URL excesivamente larga (${url.length} caracteres)`)
+            riskScore += 10
+        }
+
+        // Determine risk level based on score
+        let riskLevel = 'low'
+        if (riskScore >= 60) {
             riskLevel = 'high'
-        } else if (threats.length > 1) {
+        } else if (riskScore >= 30) {
             riskLevel = 'medium'
         }
 
@@ -85,7 +132,7 @@ export async function POST(request: NextRequest) {
 
         const recommendations = []
         if (riskLevel === 'high') {
-            recommendations.push('No acceder a este enlace')
+            recommendations.push('NO acceder a este enlace')
             recommendations.push('Reportar como phishing')
             recommendations.push('Verificar el remitente del mensaje')
         } else if (riskLevel === 'medium') {
