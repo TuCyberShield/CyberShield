@@ -92,8 +92,17 @@ export default function PlansPage() {
                             className={`glass-panel p-8 relative ${isCurrent ? 'ring-2' : ''} ${isPopular ? 'scale-105 shadow-2xl' : ''
                                 }`}
                             style={{
-                                ringColor: isCurrent ? getPlanColor(plan.id) : undefined,
-                                borderColor: isPopular ? getPlanColor(plan.id) : undefined
+                                ...(isCurrent && {
+                                    '--tw-ring-color': getPlanColor(plan.id),
+                                    borderWidth: '2px',
+                                    borderStyle: 'solid',
+                                    borderColor: getPlanColor(plan.id)
+                                } as React.CSSProperties),
+                                ...(isPopular && !isCurrent && {
+                                    borderWidth: '1px',
+                                    borderStyle: 'solid',
+                                    borderColor: getPlanColor(plan.id) + '80'
+                                } as React.CSSProperties)
                             }}
                         >
                             {/* Popular Badge */}
