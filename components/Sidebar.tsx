@@ -47,6 +47,18 @@ export default function Sidebar() {
             ),
         },
         {
+            name: 'Historial de Escaneos',
+            path: '/history',
+            icon: (
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+                    <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="8" cy="5" r="1" fill="currentColor" />
+                    <circle cx="8" cy="10" r="1" fill="currentColor" />
+                    <circle cx="8" cy="15" r="1" fill="currentColor" />
+                </svg>
+            ),
+        },
+        {
             name: 'Tu Nivel de Seguridad',
             path: '/security',
             icon: (
