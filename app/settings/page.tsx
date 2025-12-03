@@ -166,16 +166,18 @@ export default function SettingsPage() {
 
                 {/* API Keys Section */}
                 <div className="glass-panel p-6">
-                    <h3 className="text-lg font-semibold mb-4">{t.settings.apiKeys}</h3>
-                    <p style={{ color: 'var(--text-secondary)' }} className="mb-4 text-sm">{t.settings.apiKeysDesc}</p>
-                    <div className="mb-4 p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                        <p className="text-sm text-cyan-400">{t.settings.comingSoon} Generación de API keys para integrar CyberShield con tus aplicaciones</p>
+                    <h3 className="text-lg font-semibold mb-4">API Keys</h3>
+                    <p style={{ color: 'var(--text-secondary)' }} className="mb-4 text-sm">
+                        Genera claves de API para integrar CyberShield con tus aplicaciones externas
+                    </p>
+                    <div className="mb-4 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <p className="text-sm text-green-400">✅ Disponible ahora - Integra con tus sistemas</p>
                     </div>
                     <button
                         className="cyber-button px-6 py-3"
-                        onClick={() => alert('Función disponible próximamente. Permitirá generar keys para acceso programático a la plataforma.')}
+                        onClick={() => router.push('/settings/api-keys')}
                     >
-                        {t.settings.generateKey}
+                        Gestionar API Keys
                     </button>
                 </div>
 
