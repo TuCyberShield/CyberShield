@@ -29,6 +29,8 @@ model User {
   subscriptions   Subscription[]
   notifications   Notification[]
   usageLogs       UsageLog[]
+  apiKeys         ApiKey[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Plan {
@@ -138,4 +140,33 @@ model UserConfig {
   notifications Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   // User-friendly name like "Production API", "Dev Server"
+  key         String   @unique // The actual API key (hashed)
+  lastUsedAt  DateTime?
+  isActive    Boolean  @default(true)
+  rateLimit   Int      @default(100) // Requests per minute
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime? // Optional expiration
+  
+  @@index([userId])
+  @@index([key])
+}
+
+model PushSubscription {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint    String   @unique
+  p256dh      String   // Public key
+  auth        String   // Auth secret
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
 }
