@@ -24,50 +24,65 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'URL requerida' }, { status: 400 })
         }
 
-        // Enhanced URL analysis with comprehensive phishing detection
+        // Enhanced URL analysis with VERY sensitive phishing detection
         const suspiciousPatterns = [
-            'bit.ly', 'tinyurl', 'goo.gl', 't.co', // URL shorteners
-            'login', 'signin', 'verify', 'account', 'secure', 'update', 'confirm',
-            'banking', 'paypal', 'amazon', 'netflix', 'microsoft', 'apple',
+            // URL shorteners (very common in phishing)
+            'bit.ly', 'tinyurl', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly',
+
+            // Login/account related
+            'login', 'signin', 'sign-in', 'log-in', 'verify', 'account',
+            'secure', 'security', 'update', 'confirm', 'authentication',
+
+            // Banking/finance brands
+            'banking', 'paypal', 'pay-pal', 'amazon', 'netflix', 'microsoft',
+            'apple', 'icloud', 'google', 'facebook', 'instagram', 'twitter',
+            'bank', 'chase', 'wellsfargo', 'citibank', 'bankofamerica',
+
+            // Urgent/pressure words
             'password', 'suspended', 'locked', 'unusual', 'activity',
-            'urgent', 'immediate', 'action', 'required', 'expire',
+            'urgent', 'immediate', 'action', 'required', 'expire', 'expires',
+            'alert', 'warning', 'notice', 'blocked', 'limited',
+
+            // Common phishing tactics
+            'wallet', 'crypto', 'bitcoin', 'prize', 'winner', 'claim',
+            'refund', 'tax', 'irs', 'revenue', 'support', 'help',
         ]
 
         const url = input.toLowerCase()
         const threats: string[] = []
         let riskScore = 0 // 0-100 risk score
 
-        // Check for suspicious patterns (each adds 10 points)
+        // Check for suspicious patterns (each adds 8 points)
         suspiciousPatterns.forEach(pattern => {
             if (url.includes(pattern)) {
                 threats.push(`Patrón sospechoso detectado: "${pattern}"`)
-                riskScore += 10
+                riskScore += 8
             }
         })
 
         // Check for phishing indicators
         if (!url.startsWith('https://')) {
-            threats.push('URL no utiliza HTTPS - conexión insegura')
-            riskScore += 15
+            threats.push('⚠️ URL no utiliza HTTPS - conexión insegura')
+            riskScore += 20 // Increased from 15
         }
 
-        // Check for @ symbol (often used to disguise URLs)
+        // Check for @ symbol (CRITICAL - often used to disguise URLs)
         if (url.includes('@')) {
-            threats.push('URL contiene "@" - posible intento de engaño')
-            riskScore += 30
+            threats.push('🚨 URL contiene "@" - ALTO riesgo de phishing')
+            riskScore += 40 // Increased from 30
         }
 
-        // Check for IP address instead of domain
+        // Check for IP address instead of domain (CRITICAL)
         if (url.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)) {
-            threats.push('URL utiliza dirección IP en lugar de dominio')
-            riskScore += 25
+            threats.push('🚨 URL utiliza dirección IP - muy sospechoso')
+            riskScore += 35 // Increased from 25
         }
 
-        // Check for suspicious TLDs
-        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click']
+        // Check for suspicious TLDs (high risk extensions)
+        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.zip', '.review']
         if (suspiciousTLDs.some(tld => url.includes(tld))) {
-            threats.push('Dominio usa extensión de alto riesgo')
-            riskScore += 20
+            threats.push('⚠️ Dominio usa extensión de alto riesgo')
+            riskScore += 25 // Increased from 20
         }
 
         // Check for excessive subdomains
@@ -76,43 +91,63 @@ export async function POST(request: NextRequest) {
             const domain = domainMatch[1]
             const subdomains = domain.split('.').length - 2
             if (subdomains > 3) {
-                threats.push(`Número excesivo de subdominios (${subdomains})`)
-                riskScore += 15
+                threats.push(`⚠️ Número excesivo de subdominios (${subdomains})`)
+                riskScore += 20 // Increased from 15
             }
         }
 
-        // Check for typosquatting (common misspellings)
+        // Check for typosquatting (CRITICAL - common misspellings)
         const typosquattingPatterns = {
             'paypa1': 'paypal',
+            'paypai': 'paypal',
             'g00gle': 'google',
+            'googIe': 'google', // I instead of l
             'arnazon': 'amazon',
+            'amazom': 'amazon',
             'mlcrosoft': 'microsoft',
+            'microsof': 'microsoft',
             'app1e': 'apple',
+            'appie': 'apple',
+            'netfl1x': 'netflix',
+            'facebo0k': 'facebook',
         }
         Object.entries(typosquattingPatterns).forEach(([typo, real]) => {
             if (url.includes(typo)) {
-                threats.push(`Posible typosquatting: "${typo}" (imitando "${real}")`)
-                riskScore += 35
+                threats.push(`🚨 TYPOSQUATTING: "${typo}" (imitando "${real}")`)
+                riskScore += 40 // Increased from 35
             }
         })
 
         // Check for URL encoding (often used to hide malicious URLs)
         if (url.includes('%') && url.match(/%[0-9a-f]{2}/i)) {
-            threats.push('URL contiene caracteres codificados (posible ofuscación)')
-            riskScore += 15
+            threats.push('⚠️ URL contiene caracteres codificados (posible ofuscación)')
+            riskScore += 18 // Increased from 15
         }
 
         // Check for excessive length (phishing URLs are often very long)
         if (url.length > 150) {
-            threats.push(`URL excesivamente larga (${url.length} caracteres)`)
+            threats.push(`⚠️ URL excesivamente larga (${url.length} caracteres)`)
+            riskScore += 12 // Increased from 10
+        }
+
+        // Check for multiple dashes (common in phishing domains)
+        const dashCount = (url.match(/-/g) || []).length
+        if (dashCount > 3) {
+            threats.push(`⚠️ Múltiples guiones en URL (${dashCount}) - patrón sospechoso`)
             riskScore += 10
         }
 
-        // Determine risk level based on score
+        // Check for numbers in domain (often used in phishing)
+        if (url.match(/[a-z]+\d+[a-z]+/)) {
+            threats.push('⚠️ Números mezclados con letras - patrón sospechoso')
+            riskScore += 12
+        }
+
+        // Determine risk level based on score (LOWERED THRESHOLDS)
         let riskLevel = 'low'
-        if (riskScore >= 60) {
+        if (riskScore >= 25) {  // Changed from 60 to 25
             riskLevel = 'high'
-        } else if (riskScore >= 30) {
+        } else if (riskScore >= 15) {  // Changed from 30 to 15
             riskLevel = 'medium'
         }
 

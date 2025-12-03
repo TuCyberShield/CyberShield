@@ -127,11 +127,11 @@ export async function POST(request: NextRequest) {
             riskScore += 20
         }
 
-        // Determine risk level based on score
+        // Determine risk level based on score (LOWERED THRESHOLDS)
         let riskLevel = 'low'
-        if (riskScore >= 60) {
+        if (riskScore >= 25) {  // Changed from 60 to 25
             riskLevel = 'high'
-        } else if (riskScore >= 30) {
+        } else if (riskScore >= 15) {  // Changed from 30 to 15
             riskLevel = 'medium'
         }
 
