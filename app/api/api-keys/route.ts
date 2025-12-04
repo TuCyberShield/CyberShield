@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 import { generateApiKey, hashApiKey } from '@/lib/api-auth'
 
+// Mark this route as dynamic (not statically rendered)
+export const dynamic = 'force-dynamic'
+
+
 // GET - List all API keys for user
 export async function GET(request: NextRequest) {
     try {

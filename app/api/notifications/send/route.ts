@@ -4,6 +4,10 @@ import { verifyToken } from '@/lib/auth'
 // @ts-ignore - web-push doesn't have TypeScript definitions
 import webpush from 'web-push'
 
+// Mark this route as dynamic (not statically rendered)
+export const dynamic = 'force-dynamic'
+
+
 // Configure VAPID details
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(

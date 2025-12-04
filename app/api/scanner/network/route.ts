@@ -4,6 +4,10 @@ import { verifyToken } from '@/lib/auth'
 import { analyzeConnection, checkKnownConnection } from '@/lib/network-threats'
 import { getThreatIntelligence, combineThreatScores } from '@/lib/threat-intelligence'
 
+// Mark this route as dynamic (not statically rendered)
+export const dynamic = 'force-dynamic'
+
+
 export async function POST(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization')
