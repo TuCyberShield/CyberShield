@@ -1,5 +1,7 @@
 'use client'
 
+// Force rebuild - ensure all 7 menu items are included
+
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
