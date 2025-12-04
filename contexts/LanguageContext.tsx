@@ -17,7 +17,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         setMounted(true)
-        // Load language from localStorage
+        // Load language from localStorage only on client
         const savedConfig = localStorage.getItem('userConfig')
         if (savedConfig) {
             try {
@@ -34,28 +34,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const setLanguage = (newLang: Language) => {
         setLanguageState(newLang)
 
-        // Update localStorage
-        const savedConfig = localStorage.getItem('userConfig')
-        let config = { language: newLang, theme: 'dark', notifications: true }
+        // Update localStorage only if mounted (client-side)
+        if (mounted) {
+            const savedConfig = localStorage.getItem('userConfig')
+            let config = { language: newLang, theme: 'dark', notifications: true }
 
-        if (savedConfig) {
-            try {
-                config = { ...JSON.parse(savedConfig), language: newLang }
-            } catch (error) {
-                console.error('Error parsing config:', error)
+            if (savedConfig) {
+                try {
+                    config = { ...JSON.parse(savedConfig), language: newLang }
+                } catch (error) {
+                    console.error('Error parsing config:', error)
+                }
             }
+
+            localStorage.setItem('userConfig', JSON.stringify(config))
         }
-
-        localStorage.setItem('userConfig', JSON.stringify(config))
-    }
-
-    // Prevent flash of default language
-    if (!mounted) {
-        return null
     }
 
     const t = translations[language]
 
+    // Always render children to prevent hydration mismatch
     return (
         <LanguageContext.Provider value={{ language, setLanguage, t }}>
             {children}

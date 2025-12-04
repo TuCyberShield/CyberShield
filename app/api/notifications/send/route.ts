@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
+// @ts-ignore - web-push doesn't have TypeScript definitions
 import webpush from 'web-push'
 
 // Configure VAPID details

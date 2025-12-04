@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyApiKey, checkRateLimit } from '@/lib/api-auth'
 import { prisma } from '@/lib/db'
+import { analyzeConnection, checkKnownConnection } from '@/lib/network-threats'
+import { getThreatIntelligence, combineThreatScores } from '@/lib/threat-intelligence'
 
 export async function POST(request: NextRequest) {
     try {
@@ -70,11 +72,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid IP address' }, { status: 400 })
         }
 
-        // Network analysis logic
-        const threats: string[] = []
+        // Use the comprehensive threat analysis
+        const analysis = analyzeConnection(ipAddress, port)
+        const knownConnection = checkKnownConnection(ipAddress, port)
+
+        let threats = [...analysis.threats]
         let riskScore = 0
 
-        // Check for private IP ranges
+        // Map risk level to numeric score
+        switch (analysis.riskLevel) {
+            case 'critical':
+                riskScore = 100
+                break
+            case 'high':
+                riskScore = 70
+                break
+            case 'warning':
+                riskScore = 40
+                break
+            case 'safe':
+                riskScore = 0
+                break
+        }
+
+        // Additional checks for IP characteristics
         const isPrivate = (
             ipAddress.startsWith('192.168.') ||
             ipAddress.startsWith('10.') ||
@@ -96,64 +117,64 @@ export async function POST(request: NextRequest) {
             ipAddress.startsWith('172.31.')
         )
 
-        if (isPrivate) {
+        if (isPrivate && !knownConnection) {
             threats.push('🔒 Private IP address detected')
-            riskScore += 25
+            if (analysis.riskLevel !== 'safe') {
+                riskScore += 15
+            }
         }
 
         // Check for localhost
         if (ipAddress.startsWith('127.')) {
             threats.push('Localhost/loopback address')
-            riskScore += 15
         }
 
-        // Dangerous ports
-        const dangerousPorts: Record<number, string> = {
-            22: 'SSH - Remote access',
-            23: 'Telnet - Insecure remote access',
-            3389: 'RDP - Windows Remote Desktop',
-            5900: 'VNC - Remote desktop',
-            21: 'FTP - File transfer',
-            445: 'SMB - Windows file sharing',
-            139: 'NetBIOS',
-            3306: 'MySQL - Database',
-            5432: 'PostgreSQL - Database',
-            27017: 'MongoDB - Database',
-            1433: 'MS SQL Server',
-            6379: 'Redis - Database',
-            12345: 'NetBus (Trojan)',
-            31337: 'Back Orifice (Trojan)',
-            6667: 'IRC - Used by botnets'
-        }
-
-        if (dangerousPorts[port]) {
-            threats.push(`🚨 Dangerous port: ${dangerousPorts[port]}`)
-            riskScore += 30
-        }
-
-        // Safe ports (reduce risk)
-        const safePorts = [80, 443, 53, 25, 110, 143, 993, 995]
-        if (safePorts.includes(port)) {
-            threats.push(`✓ Standard port: ${port}`)
-            riskScore -= 10
-        }
-
-        // High ports
-        if (port > 49152) {
-            threats.push('High port number (>49152)')
-            riskScore += 15
-        }
-
-        // Determine risk level
-        let riskLevel = 'low'
+        // Determine status based on risk level
         let status = 'active'
+        let riskLevel: 'low' | 'medium' | 'high' = 'low'
 
-        if (riskScore >= 40) {
-            riskLevel = 'high'
+        if (analysis.riskLevel === 'critical') {
             status = 'blocked'
-        } else if (riskScore >= 20) {
-            riskLevel = 'medium'
+            riskLevel = 'high'
+        } else if (analysis.riskLevel === 'high') {
+            status = 'blocked'
+            riskLevel = 'high'
+        } else if (analysis.riskLevel === 'warning') {
             status = 'monitoring'
+            riskLevel = 'medium'
+        } else {
+            status = 'active'
+            riskLevel = 'low'
+        }
+
+        // Get threat intelligence from AbuseIPDB
+        const threatIntel = await getThreatIntelligence(ipAddress)
+
+        // Combine threat intelligence with rule-based analysis
+        if (threatIntel) {
+            const combined = combineThreatScores(riskScore, threatIntel)
+            riskLevel = combined.riskLevel
+            riskScore = combined.finalScore
+
+            // Update status based on combined score
+            if (riskLevel === 'high') {
+                status = 'blocked'
+            } else if (riskLevel === 'medium') {
+                status = 'monitoring'
+            } else {
+                status = 'active'
+            }
+
+            // Add threat intelligence insights to threats array
+            if (threatIntel.totalReports > 0) {
+                threats.push(`🌐 ${threatIntel.totalReports} abuse reports globally`)
+            }
+            if (threatIntel.abuseConfidenceScore > 0) {
+                threats.push(`📊 Threat confidence: ${threatIntel.abuseConfidenceScore}%`)
+            }
+            if (threatIntel.isWhitelisted) {
+                threats.push(`✅ Verified legitimate IP`)
+            }
         }
 
         // Store in database
@@ -190,6 +211,19 @@ export async function POST(request: NextRequest) {
                 riskScore,
                 status,
                 threats,
+                category: analysis.category,
+                emoji: analysis.emoji,
+                recommendations: analysis.recommendations,
+                threatIntelligence: threatIntel ? {
+                    provider: threatIntel.provider,
+                    abuseConfidenceScore: threatIntel.abuseConfidenceScore,
+                    totalReports: threatIntel.totalReports,
+                    lastReportedAt: threatIntel.lastReportedAt,
+                    isWhitelisted: threatIntel.isWhitelisted,
+                    countryCode: threatIntel.countryCode,
+                    isp: threatIntel.isp,
+                    cached: threatIntel.cached,
+                } : null,
                 analyzed: true,
                 timestamp: new Date().toISOString()
             },

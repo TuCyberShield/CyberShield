@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
+import { analyzeConnection, checkKnownConnection } from '@/lib/network-threats'
+import { getThreatIntelligence, combineThreatScores } from '@/lib/threat-intelligence'
 
 export async function POST(request: NextRequest) {
     try {
@@ -28,9 +30,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Puerto inválido (1-65535)' }, { status: 400 })
         }
 
-        const threats: string[] = []
-        let riskScore = 0
-
         // Validate IP format
         const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/
         if (!ipRegex.test(ipAddress)) {
@@ -43,117 +42,100 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'IP address inválida' }, { status: 400 })
         }
 
-        // Check for private IP ranges
+        // Use the comprehensive threat analysis
+        const analysis = analyzeConnection(ipAddress, port)
+        const knownConnection = checkKnownConnection(ipAddress, port)
+
+        let threats = [...analysis.threats]
+        let riskScore = 0
+
+        // Map risk level to numeric score
+        switch (analysis.riskLevel) {
+            case 'critical':
+                riskScore = 100
+                break
+            case 'high':
+                riskScore = 70
+                break
+            case 'warning':
+                riskScore = 40
+                break
+            case 'safe':
+                riskScore = 0
+                break
+        }
+
+        // Additional checks for IP characteristics
         const isPrivateIP =
             (octets[0] === 10) ||
             (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
             (octets[0] === 192 && octets[1] === 168) ||
-            (octets[0] === 127) // Loopback
+            (octets[0] === 127)
 
-        if (isPrivateIP) {
-            threats.push('🔒 IP privada detectada - no debería acceder a internet')
-            riskScore += 25
+        if (isPrivateIP && !knownConnection) {
+            threats.push('🔒 IP privada detectada')
+            if (analysis.riskLevel !== 'safe') {
+                riskScore += 15
+            }
         }
 
         // Check for localhost
         if (octets[0] === 127) {
             threats.push('⚠️ Dirección loopback (localhost)')
-            riskScore += 15
         }
 
         // Check for broadcast/multicast
         if (octets[0] >= 224) {
             threats.push('⚠️ Dirección multicast/broadcast')
-            riskScore += 20
+            riskScore += 10
         }
 
-        // Detect dangerous ports
-        const dangerousPorts: { [key: number]: string } = {
-            // Remote access
-            22: 'SSH - Acceso remoto',
-            23: 'Telnet - Acceso remoto sin cifrar',
-            3389: 'RDP - Escritorio remoto Windows',
-            5900: 'VNC - Control remoto',
+        // Determine status based on risk level
+        let status = 'active'
+        let riskLevel: 'low' | 'medium' | 'high' = 'low'
 
-            // File sharing
-            21: 'FTP - Transferencia archivos sin cifrar',
-            445: 'SMB - Compartición archivos Windows',
-            139: 'NetBIOS - Compartición archivos',
-            69: 'TFTP - Transferencia archivos trivial',
-
-            // Databases
-            3306: 'MySQL - Base de datos',
-            5432: 'PostgreSQL - Base de datos',
-            27017: 'MongoDB - Base de datos',
-            1433: 'MS SQL Server - Base de datos',
-            6379: 'Redis - Base de datos',
-
-            // Administration
-            8080: 'HTTP Proxy - Puerto administrativo',
-            8443: 'HTTPS alternativo',
-            8888: 'Puerto administrativo común',
-
-            // Trojans/Malware (common trojan ports)
-            12345: 'NetBus - Puerto de troyano conocido',
-            31337: 'Back Orifice - Puerto de troyano',
-            6667: 'IRC - Usado por botnets',
-        }
-
-        if (dangerousPorts[port]) {
-            threats.push(`🚨 Puerto peligroso: ${dangerousPorts[port]}`)
-            riskScore += 30
-        }
-
-        // Check for well-known safe services
-        const safePorts: { [key: number]: string } = {
-            80: 'HTTP - Tráfico web',
-            443: 'HTTPS - Tráfico web seguro',
-            53: 'DNS - Resolución de nombres',
-            25: 'SMTP - Correo saliente',
-            110: 'POP3 - Correo entrante',
-            143: 'IMAP - Correo entrante',
-            993: 'IMAPS - Correo seguro',
-            995: 'POP3S - Correo seguro',
-        }
-
-        if (safePorts[port]) {
-            threats.push(`✓ Puerto estándar: ${safePorts[port]}`)
-            riskScore -= 10 // Reduce risk for known safe ports
-        }
-
-        // Check for high ports (often used by malware)
-        if (port > 49152) {
-            threats.push('⚠️ Puerto dinámico/privado (>49152)')
-            riskScore += 15
-        }
-
-        // Detect cloud provider IPs (simplified check)
-        // AWS ranges start with specific octets
-        if ((octets[0] === 3 || octets[0] === 18 || octets[0] === 52 || octets[0] === 54)) {
-            threats.push('☁️ Posible IP de AWS')
-            riskScore += 5
-        }
-
-        // Google Cloud
-        if (octets[0] === 35 || (octets[0] === 34 && octets[1] < 128)) {
-            threats.push('☁️ Posible IP de Google Cloud')
-            riskScore += 5
-        }
-
-        // Determine risk level
-        let riskLevel = 'low'
-        let status = 'monitoring'
-
-        if (riskScore >= 40) {
-            riskLevel = 'high'
+        if (analysis.riskLevel === 'critical') {
             status = 'blocked'
-        } else if (riskScore >= 20) {
-            riskLevel = 'medium'
+            riskLevel = 'high' // Map to existing database schema
+        } else if (analysis.riskLevel === 'high') {
+            status = 'blocked'
+            riskLevel = 'high'
+        } else if (analysis.riskLevel === 'warning') {
             status = 'monitoring'
-        } else if (riskScore < 0) {
-            riskScore = 0
-            riskLevel = 'low'
+            riskLevel = 'medium'
+        } else {
             status = 'active'
+            riskLevel = 'low'
+        }
+
+        // Get threat intelligence from AbuseIPDB
+        const threatIntel = await getThreatIntelligence(ipAddress)
+
+        // Combine threat intelligence with rule-based analysis
+        if (threatIntel) {
+            const combined = combineThreatScores(riskScore, threatIntel)
+            riskLevel = combined.riskLevel
+            riskScore = combined.finalScore
+
+            // Update status based on combined score
+            if (riskLevel === 'high') {
+                status = 'blocked'
+            } else if (riskLevel === 'medium') {
+                status = 'monitoring'
+            } else {
+                status = 'active'
+            }
+
+            // Add threat intelligence insights to threats array
+            if (threatIntel.totalReports > 0) {
+                threats.push(`🌐 ${threatIntel.totalReports} reportes de abuso globales`)
+            }
+            if (threatIntel.abuseConfidenceScore > 0) {
+                threats.push(`📊 Confianza de amenaza: ${threatIntel.abuseConfidenceScore}%`)
+            }
+            if (threatIntel.isWhitelisted) {
+                threats.push(`✅ IP verificada como legítima`)
+            }
         }
 
         // Store in database
@@ -167,34 +149,21 @@ export async function POST(request: NextRequest) {
             },
         })
 
-        // Create threat if high risk
-        if (riskLevel === 'high') {
+        // Create threat if high or critical risk
+        if (analysis.riskLevel === 'high' || analysis.riskLevel === 'critical') {
             await prisma.threat.create({
                 data: {
                     userId: payload.userId,
                     type: 'network_connection',
                     origin: `${ipAddress}:${port}`,
-                    description: threats.join(', '),
+                    description: `${analysis.emoji} ${threats.join(' | ')}`,
                     severity: riskLevel,
                     status: 'blocked',
                 },
             })
         }
 
-        const recommendations = []
-        if (riskLevel === 'high') {
-            recommendations.push('NO permitir esta conexión')
-            recommendations.push('Bloquear en firewall')
-            recommendations.push('Investigar el origen de la conexión')
-            recommendations.push('Revisar logs de seguridad')
-        } else if (riskLevel === 'medium') {
-            recommendations.push('Monitorear esta conexión')
-            recommendations.push('Verificar que sea tráfico legítimo')
-            recommendations.push('Considerar bloqueo si persiste')
-        } else {
-            recommendations.push('Conexión parece legítima')
-            recommendations.push('Mantener monitoreo estándar')
-        }
+        const recommendations = analysis.recommendations
 
         return NextResponse.json({
             riskLevel,
@@ -206,6 +175,19 @@ export async function POST(request: NextRequest) {
                 port,
                 protocol,
                 status,
+                category: analysis.category,
+                emoji: analysis.emoji,
+                riskScore,
+                threatIntelligence: threatIntel ? {
+                    provider: threatIntel.provider,
+                    abuseConfidenceScore: threatIntel.abuseConfidenceScore,
+                    totalReports: threatIntel.totalReports,
+                    lastReportedAt: threatIntel.lastReportedAt,
+                    isWhitelisted: threatIntel.isWhitelisted,
+                    countryCode: threatIntel.countryCode,
+                    isp: threatIntel.isp,
+                    cached: threatIntel.cached,
+                } : null
             }
         })
     } catch (error) {

@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         setMounted(true)
-        // Load theme from localStorage
+        // Load theme from localStorage only on client
         const savedConfig = localStorage.getItem('userConfig')
         if (savedConfig) {
             try {
@@ -30,6 +30,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             } catch (error) {
                 console.error('Error loading theme:', error)
             }
+        } else {
+            // Set default theme on first load
+            document.documentElement.setAttribute('data-theme', 'dark')
         }
     }, [])
 
@@ -37,30 +40,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeState(newTheme)
         document.documentElement.setAttribute('data-theme', newTheme)
 
-        // Update localStorage
-        const savedConfig = localStorage.getItem('userConfig')
-        let config = { theme: newTheme, language: 'es', notifications: true }
+        // Update localStorage only if mounted (client-side)
+        if (mounted) {
+            const savedConfig = localStorage.getItem('userConfig')
+            let config = { theme: newTheme, language: 'es', notifications: true }
 
-        if (savedConfig) {
-            try {
-                config = { ...JSON.parse(savedConfig), theme: newTheme }
-            } catch (error) {
-                console.error('Error parsing config:', error)
+            if (savedConfig) {
+                try {
+                    config = { ...JSON.parse(savedConfig), theme: newTheme }
+                } catch (error) {
+                    console.error('Error parsing config:', error)
+                }
             }
-        }
 
-        localStorage.setItem('userConfig', JSON.stringify(config))
+            localStorage.setItem('userConfig', JSON.stringify(config))
+        }
     }
 
     const toggleTheme = () => {
         setTheme(theme === 'dark' ? 'light' : 'dark')
     }
 
-    // Prevent flash of unstyled content
-    if (!mounted) {
-        return null
-    }
-
+    // Always render children to prevent hydration mismatch
     return (
         <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
             {children}
