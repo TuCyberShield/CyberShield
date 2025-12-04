@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { usePlanFeatures } from '@/hooks/usePlanFeatures'
 import { UsageLimitBanner } from '@/components/UpgradePrompt'
@@ -10,7 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 
 type ScanType = 'url' | 'email' | 'invoice' | 'network'
 
-export default function ScannerPage() {
+function ScannerPageContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { canPerformScan, incrementUsage } = usePlanFeatures()
@@ -363,5 +363,13 @@ export default function ScannerPage() {
                 </div>
             )}
         </div>
+    )
+}
+
+export default function ScannerPage() {
+    return (
+        <Suspense fallback={<div className="p-8">Cargando...</div>}>
+            <ScannerPageContent />
+        </Suspense>
     )
 }

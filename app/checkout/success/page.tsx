@@ -2,11 +2,11 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PLANS, getPlanColor } from '@/lib/plans'
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const planId = searchParams.get('plan') || 'professional'
@@ -85,5 +85,13 @@ export default function CheckoutSuccessPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function CheckoutSuccessPage() {
+    return (
+        <Suspense fallback={<div className="p-8">Cargando...</div>}>
+            <CheckoutSuccessContent />
+        </Suspense>
     )
 }
