@@ -1,6 +1,7 @@
 'use client'
 
 // Force rebuild - ensure all 7 menu items are included
+// Build timestamp: 2025-12-04 16:38
 
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
