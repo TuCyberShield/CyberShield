@@ -58,14 +58,6 @@ function ScannerPageContent() {
             }
         }
 
-        // Validate email format for Email scanner
-        if (activeTab === 'email' && scanInput.trim()) {
-            const urlPattern = /^https?:\/\//i
-            if (urlPattern.test(scanInput.trim())) {
-                setResult({ error: 'Ingresa el contenido del email, no una URL. Para analizar URLs usa el scanner de URL.' })
-                return
-            }
-        }
 
         setLoading(true)
         setResult(null)
