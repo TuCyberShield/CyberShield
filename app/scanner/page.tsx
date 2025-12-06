@@ -44,7 +44,10 @@ function ScannerPageContent() {
             return
         }
 
-        if (activeTab !== 'invoice' && activeTab !== 'network' && !scanInput.trim()) return
+        if (activeTab !== 'invoice' && activeTab !== 'network' && !scanInput.trim()) {
+            setResult({ error: 'URL requerida' })
+            return
+        }
 
         const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : activeTab === 'network' ? 'networkScans' : 'invoiceScans'
         if (!canPerformScan(scanType)) {
