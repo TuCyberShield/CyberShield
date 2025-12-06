@@ -45,17 +45,26 @@ function ScannerPageContent() {
         }
 
         if (activeTab !== 'invoice' && activeTab !== 'network' && !scanInput.trim()) {
-            setResult({ error: 'URL requerida' })
+            setResult({ error: activeTab === 'url' ? 'URL requerida' : 'Contenido de email requerido' })
             return
         }
 
-        const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : activeTab === 'network' ? 'networkScans' : 'invoiceScans'
-        if (!canPerformScan(scanType)) {
-            setResult({
-                error: 'Has alcanzado el límite diario de escaneos. Actualiza tu plan para continuar.',
-                limitReached: true
-            })
-            return
+        // Validate URL format for URL scanner
+        if (activeTab === 'url' && scanInput.trim()) {
+            const urlPattern = /^(https?:\/\/)/i
+            if (!urlPattern.test(scanInput.trim())) {
+                setResult({ error: 'Por favor ingresa una URL válida (debe empezar con http:// o https://)' })
+                return
+            }
+        }
+
+        // Validate email format for Email scanner
+        if (activeTab === 'email' && scanInput.trim()) {
+            const urlPattern = /^https?:\/\//i
+            if (urlPattern.test(scanInput.trim())) {
+                setResult({ error: 'Ingresa el contenido del email, no una URL. Para analizar URLs usa el scanner de URL.' })
+                return
+            }
         }
 
         setLoading(true)
@@ -63,6 +72,19 @@ function ScannerPageContent() {
 
         try {
             const token = localStorage.getItem('token')
+
+            // Only check scan limits if user is logged in
+            if (token) {
+                const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : activeTab === 'network' ? 'networkScans' : 'invoiceScans'
+                if (!canPerformScan(scanType)) {
+                    setLoading(false)
+                    setResult({
+                        error: 'Has alcanzado el límite diario de escaneos. Actualiza tu plan para continuar.',
+                        limitReached: true
+                    })
+                    return
+                }
+            }
             let endpoint = `/api/scanner/${activeTab}`
             let body
 
@@ -86,14 +108,19 @@ function ScannerPageContent() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                 },
                 body: body,
             })
 
             const data = await res.json()
             setResult(data)
-            incrementUsage(scanType)
+
+            // Only increment usage if user is logged in
+            if (token) {
+                const scanType = activeTab === 'url' ? 'urlScans' : activeTab === 'email' ? 'emailScans' : activeTab === 'network' ? 'networkScans' : 'invoiceScans'
+                incrementUsage(scanType)
+            }
         } catch (error) {
             setResult({ error: 'Error al realizar el análisis' })
         } finally {
