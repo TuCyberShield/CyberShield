@@ -2,223 +2,241 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
+// CORS headers for browser extension
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle preflight OPTIONS request
+export async function OPTIONS() {
+    return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization')
+        let userId = null
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-        }
-
-        const token = authHeader.substring(7)
-        const payload = verifyToken(token)
-
-        if (!payload) {
-            return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+        // Authentication is now optional - extension can work anonymously
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.substring(7)
+                const payload = verifyToken(token)
+                if (payload) {
+                    userId = payload.userId
+                }
+            } catch {
+                // Continue without auth
+            }
         }
 
         const body = await request.json()
-        const { input } = body
+        const { url: input, fullAnalysis = false } = body
 
         if (!input) {
-            return NextResponse.json({ error: 'URL requerida' }, { status: 400 })
+            return NextResponse.json({ error: 'URL requerida', analyzed: false }, { status: 400, headers: corsHeaders })
         }
 
-        // Enhanced URL analysis with VERY sensitive phishing detection
-        const suspiciousPatterns = [
-            // URL shorteners
-            'bit.ly', 'tinyurl', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly',
-
-            // Login/account (English)
-            'login', 'signin', 'sign-in', 'log-in', 'verify', 'account', 'auth',
-            'secure', 'security', 'update', 'confirm', 'authentication', 'check',
-            'validation', 'portal', 'access', 'admin', 'sysadmin',
-
-            // Login/account (Spanish)
-            'iniciar-sesion', 'iniciosesion', 'verificar', 'verifica',
-            'cuenta', 'cuentas', 'seguro', 'segura', 'seguras', 'actualizar',
-            'confirmar', 'autenticacion', 'validar', 'validacion', 'gestion',
-
-            // Banking/finance (English)
-            'banking', 'bank', 'paypal', 'amazon', 'netflix', 'microsoft',
-            'apple', 'icloud', 'google', 'facebook', 'instagram', 'wallet',
-            'payment', 'transfer', 'invoice', 'billing',
-
-            // Banking/finance (Spanish)
-            'banco', 'bancaria', 'bancario', 'financiero', 'credito', 'debito',
-            'tarjeta', 'billetera', 'cartera', 'pago', 'pagos', 'transferencia',
-            'factura', 'facturacion', 'proveedor', 'cliente', 'clientebancario',
-
-            // Urgency (English)
-            'password', 'suspended', 'locked', 'unusual', 'activity',
-            'urgent', 'immediate', 'action', 'required', 'expire', 'expires',
-            'alert', 'warning', 'notice', 'blocked', 'limited',
-
-            // Urgency (Spanish)
-            'contraseña', 'suspendido', 'bloqueado', 'urgente', 'inmediato',
-            'accion', 'requerido', 'alerta', 'aviso', 'advertencia', 'expira',
-
-            // Government/Official (Spanish)
-            'sunat', 'gob-pe', 'gobierno', 'fiscal', 'tributaria', 'tributario',
-            'notificacion', 'descarga',
-
-            // Shipping/Logistics
-            'dhl', 'ups', 'fedex', 'tracking', 'entrega', 'envio', 'envios',
-            'delivery', 'shipping', 'logistica', 'seguimiento',
-
-            // Corporate/Business
-            'corporativo', 'intranet', 'empresa', 'mailcorporativo',
-            'office365', 'microsoft365', 'ms365', 'm365',
-
-            // Generic suspicious
-            'online', 'web', 'portal', 'acceso', 'cliente', 'customer',
-            'proteccion', 'protection', 'servicio', 'service',
-            'soporte', 'support', 'help', 'ayuda',
-
-            // File/Document related
-            'documentos', 'archivos', 'files', 'comprobantes', 'reportes',
-            'invoice', 'factura', 'descarga', 'download',
-
-            // Identity verification
-            'identidad', 'identity', 'mi-identidad',
-        ]
+        // Parse URL
+        let parsedUrl
+        try {
+            parsedUrl = new URL(input.toLowerCase())
+        } catch {
+            return NextResponse.json({
+                error: 'URL inválida',
+                analyzed: false,
+                riskLevel: 'unknown'
+            }, { status: 400, headers: corsHeaders })
+        }
 
         const url = input.toLowerCase()
+        const domain = parsedUrl.hostname
         const threats: string[] = []
         let riskScore = 0
 
-        // Check for suspicious patterns (each adds 6 points)
-        suspiciousPatterns.forEach(pattern => {
-            if (url.includes(pattern)) {
-                threats.push(`Patrón sospechoso: "${pattern}"`)
-                riskScore += 6
+        // ============================================
+        // 1. WHITELIST - Known Safe Domains
+        // ============================================
+        const safeDomains = [
+            'google.com', 'www.google.com', 'mail.google.com', 'drive.google.com',
+            'youtube.com', 'www.youtube.com',
+            'facebook.com', 'www.facebook.com', 'm.facebook.com',
+            'amazon.com', 'www.amazon.com',
+            'microsoft.com', 'www.microsoft.com', 'outlook.com', 'login.microsoftonline.com',
+            'apple.com', 'www.apple.com', 'icloud.com',
+            'github.com', 'www.github.com',
+            'linkedin.com', 'www.linkedin.com',
+            'twitter.com', 'x.com',
+            'instagram.com', 'www.instagram.com',
+            'whatsapp.com', 'web.whatsapp.com',
+            'netflix.com', 'www.netflix.com',
+            'spotify.com', 'www.spotify.com',
+            'wikipedia.org', 'www.wikipedia.org', 'en.wikipedia.org', 'es.wikipedia.org',
+            'stackoverflow.com', 'www.stackoverflow.com',
+            'reddit.com', 'www.reddit.com',
+            'zoom.us', 'www.zoom.us',
+            'dropbox.com', 'www.dropbox.com',
+        ]
+
+        // If domain is in whitelist, it's definitely safe
+        if (safeDomains.includes(domain)) {
+            threats.push('✅ Sitio web verificado y confiable')
+            return NextResponse.json({
+                riskLevel: 'low',
+                threats,
+                recommendations: ['Sitio seguro y verificado', 'Puedes navegar con confianza'],
+                analyzed: true,
+            }, { headers: corsHeaders })
+        }
+
+        // ============================================
+        // 2. CRITICAL THREATS - Immediate High Risk
+        // ============================================
+
+        // Check for @ symbol (phishing technique)
+        if (url.includes('@')) {
+            threats.push('🚨 CRÍTICO: URL contiene "@" - técnica de phishing')
+            riskScore += 60
+        }
+
+        // Check for IP address instead of domain
+        if (domain.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+            threats.push('🚨 CRÍTICO: Usa dirección IP directa - muy sospechoso')
+            riskScore += 50
+        }
+
+        // ============================================
+        // 3. HIGH RISK PATTERNS - Likely Phishing
+        // ============================================
+
+        // Typosquatting - common misspellings
+        const typosquatting = [
+            'paypa1', 'paypai', 'g00gle', 'googIe', 'arnazon', 'amazom',
+            'mlcrosoft', 'microsof', 'micros0ft', 'app1e', 'appie',
+            'netfl1x', 'facebo0k', 'faceb00k', 'yah00', 'tw1tter'
+        ]
+
+        typosquatting.forEach(typo => {
+            if (domain.includes(typo)) {
+                threats.push(`🚨 Typosquatting detectado: "${typo}" - posible imitación de marca`)
+                riskScore += 50
             }
         })
 
-        // Check for phishing indicators
-        if (!url.startsWith('https://')) {
-            threats.push('⚠️ NO usa HTTPS - conexión insegura')
+        // Suspicious TLDs
+        const dangerousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.zip']
+        const domainTLD = domain.substring(domain.lastIndexOf('.'))
+        if (dangerousTLDs.includes(domainTLD)) {
+            threats.push(`⚠️ Dominio de alto riesgo: ${domainTLD}`)
+            riskScore += 30
+        }
+
+        // ============================================
+        // 4. MEDIUM RISK INDICATORS
+        // ============================================
+
+        // URL shorteners
+        const shorteners = ['bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'short.link']
+        if (shorteners.some(s => domain.includes(s))) {
+            threats.push('⚠️ URL acortada - destino real desconocido')
             riskScore += 20
         }
 
-        // Check for @ symbol (CRITICAL)
-        if (url.includes('@')) {
-            threats.push('🚨 Contiene "@" - ALTO riesgo de phishing')
-            riskScore += 40
+        // Excessive subdomains (more than 3)
+        const subdomains = domain.split('.').length - 2
+        if (subdomains > 3) {
+            threats.push(`⚠️ Múltiples subdominios (${subdomains}) - podría ser sospechoso`)
+            riskScore += 15
         }
 
-        // Check for IP address (CRITICAL)
-        if (url.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/)) {
-            threats.push('🚨 Usa dirección IP - muy sospechoso')
+        // ============================================
+        // 5. PHISHING KEYWORDS (Only if NOT whitelisted)
+        // ============================================
+
+        // Only check for phishing if domain contains brand names but ISN'T the real site
+        const brandKeywords = ['paypal', 'amazon', 'microsoft', 'apple', 'google', 'facebook', 'netflix', 'bank']
+        const containsBrand = brandKeywords.some(brand => domain.includes(brand))
+
+        if (containsBrand && !safeDomains.includes(domain)) {
+            threats.push('⚠️ Dominio contiene nombre de marca conocida - verificar autenticidad')
             riskScore += 35
         }
 
-        // Check for suspicious TLDs
-        const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.zip', '.review', '.info', '.net', '.org']
-        const foundTLD = suspiciousTLDs.find(tld => url.includes(tld))
-        if (foundTLD) {
-            threats.push(`⚠️ Extensión sospechosa: ${foundTLD}`)
-            riskScore += 22
-        }
+        // ============================================
+        // 6. LOW RISK INDICATORS
+        // ============================================
 
-        // Check for dangerous file extensions in URL
-        const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.zip', '.rar', '.cab', '.msi']
-        dangerousExtensions.forEach(ext => {
-            if (url.includes(ext)) {
-                threats.push(`🚨 Archivo ejecutable sospechoso: ${ext}`)
-                riskScore += 35
-            }
-        })
-
-        // Check for excessive subdomains
-        const domainMatch = url.match(/https?:\/\/([^\/]+)/)
-        if (domainMatch) {
-            const domain = domainMatch[1]
-            const subdomains = domain.split('.').length - 2
-            if (subdomains > 3) {
-                threats.push(`⚠️ Múltiples subdominios (${subdomains})`)
-                riskScore += 18
-            }
-        }
-
-        // Check for typosquatting and homographs
-        const typosquattingPatterns = [
-            'paypa1', 'paypai', 'g00gle', 'googIe', 'arnazon', 'amazom',
-            'mlcrosoft', 'microsof', 'micros0ft', 'app1e', 'appie',
-            'netfl1x', 'facebo0k', 'faceb00k'
-        ]
-        typosquattingPatterns.forEach(typo => {
-            if (url.includes(typo)) {
-                threats.push(`🚨 TYPOSQUATTING detectado: "${typo}"`)
-                riskScore += 40
-            }
-        })
-
-        // Check for URL encoding
-        if (url.includes('%') && url.match(/%[0-9a-f]{2}/i)) {
-            threats.push('⚠️ Caracteres codificados (ofuscación)')
-            riskScore += 18
-        }
-
-        // Check for excessive length
-        if (url.length > 150) {
-            threats.push(`⚠️ URL muy larga (${url.length} caracteres)`)
-            riskScore += 12
-        }
-
-        // Check for multiple dashes (common in phishing)
-        const dashCount = (url.match(/-/g) || []).length
-        if (dashCount > 3) {
-            threats.push(`⚠️ Múltiples guiones (${dashCount})`)
+        // No HTTPS
+        if (parsedUrl.protocol !== 'https:') {
+            threats.push('⚠️ Conexión HTTP insegura - usa HTTPS siempre que sea posible')
             riskScore += 10
         }
 
-        // Check for numbers mixed with letters (homographs)
-        if (url.match(/[a-z]+\d+[a-z]+/) || url.match(/\d+[a-z]+\d+/)) {
-            threats.push('⚠️ Números mezclados con letras')
-            riskScore += 12
+        // Excessive dashes
+        const dashCount = (domain.match(/-/g) || []).length
+        if (dashCount > 3) {
+            threats.push(`ℹ️ Múltiples guiones en dominio (${dashCount})`)
+            riskScore += 8
         }
 
-        // Check for government impersonation (non-.gob.pe domains)
-        if ((url.includes('sunat') || url.includes('gob') || url.includes('gobierno')) && !url.includes('.gob.pe')) {
-            threats.push('🚨 Posible suplantación de entidad gubernamental')
-            riskScore += 35
-        }
+        // ============================================
+        // 7. DETERMINE FINAL RISK LEVEL
+        // ============================================
 
-        // Determine risk level (LOWERED THRESHOLDS)
-        let riskLevel = 'low'
-        if (riskScore >= 25) {
+        let riskLevel: 'low' | 'medium' | 'high' = 'low'
+
+        if (riskScore >= 50) {
             riskLevel = 'high'
-        } else if (riskScore >= 15) {
+        } else if (riskScore >= 25) {
             riskLevel = 'medium'
+        } else {
+            riskLevel = 'low'
         }
 
-        // Store threat if detected
-        if (threats.length > 0) {
-            await prisma.threat.create({
-                data: {
-                    userId: payload.userId,
-                    type: 'url_phishing',
-                    origin: input,
-                    description: threats.join(', '),
-                    severity: riskLevel,
-                    status: riskLevel === 'high' ? 'blocked' : 'monitoring',
-                },
-            })
+        // If no threats found, site is safe
+        if (threats.length === 0) {
+            threats.push('✓ No se detectaron amenazas conocidas')
         }
+
+        // ============================================
+        // 8. STORE THREAT IF DETECTED
+        // ============================================
+
+        if (riskLevel === 'high' && userId) {
+            try {
+                await prisma.threat.create({
+                    data: {
+                        userId,
+                        type: 'url_phishing',
+                        origin: input,
+                        description: threats.join(', '),
+                        severity: riskLevel,
+                        status: 'blocked',
+                    },
+                })
+            } catch (dbError) {
+                console.error('DB Error:', dbError)
+            }
+        }
+
+        // ============================================
+        // 9. GENERATE RECOMMENDATIONS
+        // ============================================
 
         const recommendations = []
         if (riskLevel === 'high') {
-            recommendations.push('NO acceder a este enlace')
-            recommendations.push('Reportar como phishing')
-            recommendations.push('Verificar el remitente')
+            recommendations.push('⛔ NO visites este sitio')
+            recommendations.push('🚩 Reporta como phishing')
+            recommendations.push('🔍 Verifica el remitente si llegaste por email')
         } else if (riskLevel === 'medium') {
-            recommendations.push('Proceder con EXTREMA precaución')
-            recommendations.push('Verificar legitimidad del sitio')
-            recommendations.push('No ingresar datos personales')
+            recommendations.push('⚠️ Proceder con cautela')
+            recommendations.push('🔐 NO ingreses datos personales o contraseñas')
+            recommendations.push('✅ Verifica que el dominio sea legítimo')
         } else {
-            recommendations.push('URL parece segura')
-            recommendations.push('Mantener precaución general')
+            recommendations.push('✅ Sitio parece seguro')
+            recommendations.push('💡 Siempre verifica el candado HTTPS')
         }
 
         return NextResponse.json({
@@ -226,12 +244,14 @@ export async function POST(request: NextRequest) {
             threats,
             recommendations,
             analyzed: true,
-        })
+        }, { headers: corsHeaders })
+
     } catch (error) {
         console.error('URL scan error:', error)
-        return NextResponse.json(
-            { error: 'Error al analizar URL' },
-            { status: 500 }
-        )
+        return NextResponse.json({
+            error: 'Error al analizar URL',
+            analyzed: false,
+            riskLevel: 'unknown'
+        }, { status: 500, headers: corsHeaders })
     }
 }

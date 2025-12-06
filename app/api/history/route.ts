@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
+// Mark this route as dynamic (not statically rendered)
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization')
@@ -61,14 +65,14 @@ export async function GET(request: NextRequest) {
             }
 
             if (startDate || endDate) {
-                threatWhere.detectedAt = {}
-                if (startDate) threatWhere.detectedAt.gte = new Date(startDate)
-                if (endDate) threatWhere.detectedAt.lte = new Date(endDate)
+                threatWhere.createdAt = {}
+                if (startDate) threatWhere.createdAt.gte = new Date(startDate)
+                if (endDate) threatWhere.createdAt.lte = new Date(endDate)
             }
 
             const threats = await prisma.threat.findMany({
                 where: threatWhere,
-                orderBy: { detectedAt: 'desc' },
+                orderBy: { createdAt: 'desc' },
                 select: {
                     id: true,
                     type: true,
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
                     description: true,
                     severity: true,
                     status: true,
-                    detectedAt: true
+                    createdAt: true
                 }
             })
 
@@ -96,7 +100,7 @@ export async function GET(request: NextRequest) {
                     riskScore: threat.severity === 'high' ? 80 : threat.severity === 'medium' ? 50 : 20,
                     threats: threat.description.split(', '),
                     status: threat.status,
-                    scannedAt: threat.detectedAt
+                    scannedAt: threat.createdAt
                 })
             })
         }

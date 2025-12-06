@@ -88,7 +88,10 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Email analysis error:', error)
         return NextResponse.json(
-            { error: 'Error al analizar el email', details: error.message },
+            {
+                error: 'Error al analizar el email',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            },
             { status: 500 }
         )
     }

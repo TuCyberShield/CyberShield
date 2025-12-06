@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate"
@@ -16,6 +16,7 @@
     "date-fns": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "next": "^14.2.0",
+    "pg": "^8.16.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "web-push": "^3.6.7"

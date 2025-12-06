@@ -142,59 +142,8 @@ async function addToHistory(url, scanResult) {
         }
 
         await chrome.storage.local.set({ scanHistory: history });
-
-        // Try to sync with backend if user is logged in
-        await syncScanToBackend(entry);
     } catch (error) {
         console.error('Failed to save to history:', error);
-    }
-}
-
-/**
- * Sync scan to backend if user is authenticated
- */
-async function syncScanToBackend(scanEntry) {
-    try {
-        // Check if user is authenticated
-        if (!api.isAuthenticated()) {
-            console.log('User not logged in, skipping backend sync');
-            return;
-        }
-
-        // Prepare data for backend
-        const backendData = {
-            url: scanEntry.url,
-            type: 'URL',
-            riskLevel: scanEntry.riskLevel,
-            threats: scanEntry.threats,
-            source: 'extension',
-            metadata: {
-                domain: scanEntry.domain,
-                timestamp: scanEntry.timestamp,
-                analyzed: scanEntry.analyzed
-            }
-        };
-
-        // Send to backend via API
-        const response = await fetch(`${api.baseURL}/api/history`, {
-            method: 'POST',
-            headers: api.getHeaders(),
-            body: JSON.stringify(backendData)
-        });
-
-        if (response.ok) {
-            console.log('✓ Scan synced to backend:', scanEntry.domain);
-        } else if (response.status === 401) {
-            // Token expired or invalid
-            console.warn('Authentication expired, clearing token');
-            await api.clearToken();
-        } else {
-            console.warn('Failed to sync scan to backend:', response.status);
-        }
-    } catch (error) {
-        // Network error or backend unavailable - fail silently
-        console.log('Backend sync failed (offline?):', error.message);
-        // Data is still saved locally, so user won't lose it
     }
 }
 

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
+// Mark this route as dynamic (not statically rendered)
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization')

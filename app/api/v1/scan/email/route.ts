@@ -116,6 +116,8 @@ export async function POST(request: NextRequest) {
         await prisma.email.create({
             data: {
                 userId: authResult.userId!,
+                sender: 'API Scan',
+                subject: 'API Email Scan',
                 content: content.substring(0, 1000),
                 analyzed: true,
                 riskLevel: riskLevel,

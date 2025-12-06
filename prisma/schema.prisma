@@ -184,7 +184,7 @@ model Report {
   emailSent   Boolean  @default(false)
   createdAt   DateTime @default(now())
   
-  stats       Json     // Summary statistics
+  stats       String     // Summary statistics (JSON string)
   
   @@index([userId, createdAt])
 }
@@ -196,7 +196,7 @@ model ReportSchedule {
   frequency   String   // weekly, monthly
   dayOfWeek   Int?     // 0-6 for weekly (0 = Sunday)
   dayOfMonth  Int?     // 1-31 for monthly
-  emailTo     String[] // Recipients
+  emailTo     String   // Recipients (comma-separated)
   isActive    Boolean  @default(true)
   lastRun     DateTime?
   nextRun     DateTime?

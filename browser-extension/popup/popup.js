@@ -1,147 +1,87 @@
 /**
- * CyberShield Popup - Updated JavaScript
- * Now with user session handling
+ * CyberShield Popup Script
+ * Manages the extension popup interface
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadUserSession();
-  await loadCurrentScan();
-  await loadHistory();
-  setupEventListeners();
+    await loadCurrentScan();
+    await loadHistory();
+    setupEventListeners();
 });
-
-/**
- * Load and display user session status
- */
-async function loadUserSession() {
-  const userSession = document.getElementById('userSession');
-
-  try {
-    const isLoggedIn = api.isAuthenticated();
-    const userEmail = await chrome.storage.local.get(['userEmail']);
-
-    if (isLoggedIn && userEmail.userEmail) {
-      // User is logged in
-      userSession.className = 'user-session logged-in';
-      userSession.innerHTML = `
-                <div class="user-info">
-                    <div class="user-avatar">${userEmail.userEmail[0].toUpperCase()}</div>
-                    <div class="user-email">${userEmail.userEmail}</div>
-                    <span class="sync-badge">✓ Sincronizado</span>
-                </div>
-                <button id="logoutBtn" class="btn-logout">Cerrar Sesión</button>
-            `;
-
-      // Add logout listener
-      document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    } else {
-      // User is not logged in
-      userSession.className = 'user-session';
-      userSession.innerHTML = `
-                <div class="user-info">
-                    <span style="font-size: 13px; color: #64748b;">Inicia sesión para sincronizar</span>
-                </div>
-                <button id="loginBtn" class="btn-login">Iniciar Sesión</button>
-            `;
-
-      // Add login listener
-      document.getElementById('loginBtn').addEventListener('click', () => {
-        window.location.href = 'login.html';
-      });
-    }
-  } catch (error) {
-    console.error('Failed to load user session:', error);
-  }
-}
-
-/**
- * Handle user logout
- */
-async function handleLogout() {
-  try {
-    await api.clearToken();
-    await chrome.storage.local.remove(['userEmail', 'loginTime']);
-
-    // Reload the popup to show logged out state
-    window.location.reload();
-  } catch (error) {
-    console.error('Logout failed:', error);
-  }
-}
 
 /**
  * Load current tab scan result
  */
 async function loadCurrentScan() {
-  const scanResult = document.getElementById('scanResult');
+    const scanResult = document.getElementById('scanResult');
 
-  try {
-    // Get current tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    try {
+        // Get current tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab || tab.url.startsWith('chrome://')) {
-      scanResult.innerHTML = `
+        if (!tab || tab.url.startsWith('chrome://')) {
+            scanResult.innerHTML = `
         <div class="scan-card-content">
           <div class="icon-large">ℹ️</div>
           <h3>Página del Sistema</h3>
           <p>No se puede escanear páginas internas del navegador</p>
         </div>
       `;
-      scanResult.className = 'scan-card';
-      return;
-    }
+            scanResult.className = 'scan-card';
+            return;
+        }
 
-    // Request scan result from background
-    const response = await chrome.runtime.sendMessage({
-      action: 'getCurrentTabScan'
-    });
+        // Request scan result from background
+        const response = await chrome.runtime.sendMessage({
+            action: 'getCurrentTabScan'
+        });
 
-    if (response.success && response.result) {
-      displayScanResult(response.result, tab.url);
-    } else {
-      scanResult.innerHTML = `
+        if (response.success && response.result) {
+            displayScanResult(response.result, tab.url);
+        } else {
+            scanResult.innerHTML = `
         <div class="scan-card-content">
           <div class="icon-large">⏳</div>
           <h3>Escaneando...</h3>
           <p>${truncateURL(tab.url)}</p>
         </div>
       `;
-    }
-  } catch (error) {
-    console.error('Failed to load current scan:', error);
-    scanResult.innerHTML = `
+        }
+    } catch (error) {
+        console.error('Failed to load current scan:', error);
+        scanResult.innerHTML = `
       <div class="scan-card-content error">
         <div class="icon-large">⚠️</div>
         <h3>Error</h3>
         <p>No se pudo cargar el análisis</p>
       </div>
     `;
-    scanResult.className = 'scan-card';
-  }
+        scanResult.className = 'scan-card';
+    }
 }
 
 /**
  * Display scan result in popup
  */
 function displayScanResult(result, url) {
-  const scanResult = document.getElementById('scanResult');
-  const domain = extractDomain(url);
-  const emoji = getRiskEmoji(result.riskLevel);
-  const color = getRiskColor(result.riskLevel);
+    const scanResult = document.getElementById('scanResult');
+    const domain = extractDomain(url);
+    const emoji = getRiskEmoji(result.riskLevel);
+    const color = getRiskColor(result.riskLevel);
 
-  const threats = result.threats || [];
-  const threatsHTML = threats.length > 0
-    ? threats.slice(0, 3).map(t => `<li>${t}</li>`).join('')
-    : '<li>No se detectaron amenazas</li>';
+    const threats = result.threats || [];
+    const threatsHTML = threats.length > 0
+        ? threats.slice(0, 3).map(t => `<li>${t}</li>`).join('')
+        : '<li>No se detectaron amenazas</li>';
 
-  const riskClass = result.riskLevel === 'high' || result.riskLevel === 'critical'
-    ? 'danger'
-    : result.riskLevel === 'medium' || result.riskLevel === 'warning'
-      ? 'warning'
-      : 'safe';
+    const riskClass = result.riskLevel === 'high' || result.riskLevel === 'critical'
+        ? 'danger'
+        : result.riskLevel === 'medium' || result.riskLevel === 'warning'
+            ? 'warning'
+            : 'safe';
 
-  scanResult.className = `scan-card ${riskClass}`;
-  scanResult.innerHTML = `
+    scanResult.className = `scan-card ${riskClass}`;
+    scanResult.innerHTML = `
     <div class="scan-card-content">
       <div class="risk-indicator" style="background-color: ${color}">
         <div class="icon-large">${emoji}</div>
@@ -162,9 +102,9 @@ function displayScanResult(result, url) {
  * Get threat intelligence HTML
  */
 function getThreatIntelHTML(ti) {
-  if (!ti || ti.abuseConfidenceScore === 0) return '';
+    if (!ti || ti.abuseConfidenceScore === 0) return '';
 
-  return `
+    return `
     <div class="threat-intel">
       <div class="intel-badge">
         <span>🌐</span> ${ti.totalReports} reportes globales
@@ -178,44 +118,44 @@ function getThreatIntelHTML(ti) {
  * Get risk level text
  */
 function getRiskLevelText(level) {
-  const texts = {
-    low: 'Seguro',
-    safe: 'Seguro',
-    medium: 'Precaución',
-    warning: 'Advertencia',
-    high: '¡Peligroso!',
-    critical: '¡Amenaza Crítica!',
-    unknown: 'Sin análisis'
-  };
-  return texts[level] || 'Desconocido';
+    const texts = {
+        low: 'Seguro',
+        safe: 'Seguro',
+        medium: 'Precaución',
+        warning: 'Advertencia',
+        high: '¡Peligroso!',
+        critical: '¡Amenaza Crítica!',
+        unknown: 'Sin análisis'
+    };
+    return texts[level] || 'Desconocido';
 }
 
 /**
  * Load scan history
  */
 async function loadHistory() {
-  const historyList = document.getElementById('historyList');
-  const statsElement = document.getElementById('stats');
+    const historyList = document.getElementById('historyList');
+    const statsElement = document.getElementById('stats');
 
-  try {
-    const response = await chrome.runtime.sendMessage({ action: 'getHistory' });
+    try {
+        const response = await chrome.runtime.sendMessage({ action: 'getHistory' });
 
-    if (response.success && response.history) {
-      const history = response.history;
+        if (response.success && response.history) {
+            const history = response.history;
 
-      if (history.length === 0) {
-        historyList.innerHTML = '<p class="empty-message">Sin historial de escaneos</p>';
-        statsElement.textContent = '0 sitios escaneados';
-        return;
-      }
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="empty-message">Sin historial de escaneos</p>';
+                statsElement.textContent = '0 sitios escaneados';
+                return;
+            }
 
-      // Update stats
-      statsElement.textContent = `${history.length} sitios escaneados`;
+            // Update stats
+            statsElement.textContent = `${history.length} sitios escaneados`;
 
-      // Display history items (max 10)
-      historyList.innerHTML = history.slice(0, 10).map(item => {
-        const emoji = getRiskEmoji(item.riskLevel);
-        return `
+            // Display history items (max 10)
+            historyList.innerHTML = history.slice(0, 10).map(item => {
+                const emoji = getRiskEmoji(item.riskLevel);
+                return `
           <div class="history-item" data-url="${item.url}">
             <div class="history-icon">${emoji}</div>
             <div class="history-info">
@@ -227,65 +167,65 @@ async function loadHistory() {
             </div>
           </div>
         `;
-      }).join('');
+            }).join('');
 
-      // Add click listeners to history items
-      document.querySelectorAll('.history-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const url = item.dataset.url;
-          chrome.tabs.create({ url });
-        });
-      });
+            // Add click listeners to history items
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const url = item.dataset.url;
+                    chrome.tabs.create({ url });
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load history:', error);
+        historyList.innerHTML = '<p class="empty-message error">Error al cargar historial</p>';
     }
-  } catch (error) {
-    console.error('Failed to load history:', error);
-    historyList.innerHTML = '<p class="empty-message error">Error al cargar historial</p>';
-  }
 }
 
 /**
  * Setup event listeners
  */
 function setupEventListeners() {
-  // Rescan button
-  document.getElementById('rescanBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('rescanBtn');
-    btn.disabled = true;
-    btn.textContent = 'Escaneando...';
+    // Rescan button
+    document.getElementById('rescanBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('rescanBtn');
+        btn.disabled = true;
+        btn.textContent = 'Escaneando...';
 
-    try {
-      await chrome.runtime.sendMessage({ action: 'rescan' });
-      await loadCurrentScan();
-      await loadHistory();
-    } catch (error) {
-      console.error('Rescan failed:', error);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<span>🔄</span> Reescanear';
-    }
-  });
+        try {
+            await chrome.runtime.sendMessage({ action: 'rescan' });
+            await loadCurrentScan();
+            await loadHistory();
+        } catch (error) {
+            console.error('Rescan failed:', error);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🔄</span> Reescanear';
+        }
+    });
 
-  // Clear history button
-  document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
-    if (confirm('¿Eliminar todo el historial de escaneos?')) {
-      await chrome.runtime.sendMessage({ action: 'clearHistory' });
-      await loadHistory();
-    }
-  });
+    // Clear history button
+    document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
+        if (confirm('¿Eliminar todo el historial de escaneos?')) {
+            await chrome.runtime.sendMessage({ action: 'clearHistory' });
+            await loadHistory();
+        }
+    });
 
-  // Open dashboard
-  document.getElementById('openDashboard').addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: 'http://localhost:3000/dashboard' });
-  });
+    // Open dashboard
+    document.getElementById('openDashboard').addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'http://localhost:3000/dashboard' });
+    });
 
-  // Settings button (placeholder)
-  document.getElementById('settingsBtn').addEventListener('click', () => {
-    alert('Configuración próximamente...');
-  });
+    // Settings button (placeholder)
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+        alert('Configuración próximamente...');
+    });
 
-  // Report button (placeholder)
-  document.getElementById('reportBtn').addEventListener('click', () => {
-    alert('Función de reporte próximamente...');
-  });
+    // Report button (placeholder)
+    document.getElementById('reportBtn').addEventListener('click', () => {
+        alert('Función de reporte próximamente...');
+    });
 }
