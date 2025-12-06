@@ -5,16 +5,19 @@ import { verifyToken } from '@/lib/auth'
 export async function POST(request: NextRequest) {
     try {
         const authHeader = request.headers.get('authorization')
+        let userId = null
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-        }
-
-        const token = authHeader.substring(7)
-        const payload = verifyToken(token)
-
-        if (!payload) {
-            return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+        // Authentication is now optional - allow anonymous scans
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.substring(7)
+                const payload = verifyToken(token)
+                if (payload) {
+                    userId = payload.userId
+                }
+            } catch {
+                // Continue without auth
+            }
         }
 
         const body = await request.json()
@@ -156,22 +159,24 @@ export async function POST(request: NextRequest) {
             status = 'active'
         }
 
-        // Store in database
-        await prisma.connection.create({
-            data: {
-                userId: payload.userId,
-                ipAddress,
-                port,
-                protocol,
-                status,
-            },
-        })
+        // Store in database (only if authenticated)
+        if (userId) {
+            await prisma.connection.create({
+                data: {
+                    userId,
+                    ipAddress,
+                    port,
+                    protocol,
+                    status,
+                },
+            })
+        }
 
-        // Create threat if high risk
-        if (riskLevel === 'high') {
+        // Create threat if high risk (only if authenticated)
+        if (riskLevel === 'high' && userId) {
             await prisma.threat.create({
                 data: {
-                    userId: payload.userId,
+                    userId,
                     type: 'network_connection',
                     origin: `${ipAddress}:${port}`,
                     description: threats.join(', '),
